@@ -18,4 +18,4 @@ filename:
 - cumulative ACK
 - If a gap is detected
     - reACK the sequence number of last received packet
-    - put the newly received packet into the buffer
+    - discard newly received packets (sliding window: Go Back N)
