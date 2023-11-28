@@ -38,6 +38,7 @@ double tv2ms(struct timeval *tv) {
 void do_send(int sig) {
 	unsigned char buf[1024];
 	if(sig == SIGALRM) {
+		// effectively treating the buffer as a structure of type ping_t
 		ping_t *p = (ping_t*) buf;
 		p->seq = seq++;
 		gettimeofday(&p->tv, NULL);
@@ -95,13 +96,13 @@ int main(int argc, char *argv[]) {
 		socklen_t csinlen = sizeof(csin);
 		char buf[2048];
 		struct timeval tv;
-		ping_t *p = (ping_t *) buf;
+		ping_t *p = (ping_t *) buf;// p is point to buf start
 		
 		if((rlen = recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr*) &csin, &csinlen)) < 0) {
 			perror("recvfrom");
 			continue;
 		}
-
+		// p means the mesg from server
 		gettimeofday(&tv, NULL);
 		printf("%lu.%06lu %d bytes from %u.%u.%u.%u/%u: seq=%u, time=%.6f ms\n",
 				p->tv.tv_sec, p->tv.tv_usec, rlen,
