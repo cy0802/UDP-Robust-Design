@@ -11,6 +11,7 @@ ACK:
 fin: set to 1 when finish transfering all the files
 cksum: checksum of only payload
 filename:
+fileEnd: 
 (payload)
 ```
 
