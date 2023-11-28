@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	srand(time(0) ^ getpid());
-
+	// IONBF: not use buffer, each I/O fast write and read  
 	setvbuf(stdin, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 	setvbuf(stdout, NULL, _IONBF, 0);
@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(strtol(argv[argc-2], NULL, 0));
+	// inet_pton transfer host address order into network address order
 	if(inet_pton(AF_INET, argv[argc-1], &sin.sin_addr) != 1) {
 		return -fprintf(stderr, "** cannot convert IPv4 address for %s\n", argv[1]);
 	}
@@ -70,7 +71,17 @@ int main(int argc, char *argv[]) {
 	if((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
 		err_quit("socket");
 
+	// set up signal handler for "SIGALRM" 
+	// when program receive SIGALRM signal, do_send func should be execute
 	signal(SIGALRM, do_send);
+	/*
+	// NIPQUAD is used to transfer IP address from string to number
+	#define NIPQUAD(addr)
+		((unsigned char*) &addr)[0],
+		((unsigned char*) &addr)[1],
+		((unsigned char*) &addr)[2],
+		((unsigned char*) &addr)[3]
+	*/
 
 	seq = rand() % 0xffffff;
 	fprintf(stderr, "PING %u.%u.%u.%u/%u, init seq = %d\n",

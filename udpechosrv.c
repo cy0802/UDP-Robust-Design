@@ -26,6 +26,8 @@ int main(int argc, char *argv[]) {
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
+	// strtol: transfer string to long 
+	// htons: trnasfer host byte order into network byte order
 	sin.sin_port = htons(strtol(argv[argc-1], NULL, 0));
 
 	if((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
