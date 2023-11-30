@@ -61,7 +61,7 @@ public:
     //             perror("sending");
     //             exit(EXIT_FAILURE);
     //         }
-	void send(int sockfd){
+	void sendto(int sockfd){
 		bzero(&buffer, sizeof(buffer));
 		sprintf(buffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 			seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
