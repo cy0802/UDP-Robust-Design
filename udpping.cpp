@@ -7,7 +7,8 @@
 #include <sstream>
 #include <fstream>
 #include <string>
-#include <queue>
+#include <vector>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,12 @@
 #define errquit(m) { perror(m); exit(-1); }
 using namespace std;
 
-char buffer[MAXLINE];
+char sendBuffer[MAXLINE];
+char rcvBuffer[MAXLINE];
+int curFile = 0;
+int seq = 1;
+int servSeq = -1;
+int lastACK = -1;
 
 class Packet{
 public:
@@ -39,6 +45,18 @@ public:
 
 	bool isAcked;
 
+	Packet(char* raw){
+		string _raw = raw;
+		cout << raw << endl;
+		stringstream ss; ss.clear();
+		string tmp;
+		ss << raw;
+		ss >> tmp >> seq >> tmp >> ack >> tmp >> fin >> tmp >> cksum;
+		len = 0;
+		filename = "";
+		data = NULL;
+	}
+
 	Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data){
 		seq = _seq; ack = 0; fin = _fin; len = _len;
 		filename = _filename; fileEnd = _fileEnd;
@@ -47,6 +65,11 @@ public:
 		memcpy(data, _data, _len);
 		isAcked = false;
 	};
+
+	~Packet(){
+		delete[] data;
+	}
+
 	void calculateCksum(){
 		unsigned short *ptr = (unsigned short*)data;
 		cksum = ptr[0];
@@ -62,27 +85,26 @@ public:
 		printf("====================================================\n");
 	}
 	void send(int sockfd){
-		bzero(&buffer, sizeof(buffer));
-		sprintf(buffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
+		bzero(&sendBuffer, sizeof(sendBuffer));
+		sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 			seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
 		int n;
-		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("write");
+		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("write");
 	}
 };
 
-static int s = -1;
+static int sockfd = -1;
 static struct sockaddr_in sin;
-queue<Packet> sendQueue;
-queue<Packet> waitQueue;
+vector<Packet> waitQueue;
 int cnt = WINDOW_SIZE;
 int totalFile;
 char* fileDir;
 
-void sending();
-void receiving();
-void prepare();
+void send10File(int sockfd);
+Packet rcv(int sockfd);
 
 int main(int argc, char *argv[]) {
+	
 	if(argc < 3) {
 		return -fprintf(stderr, "usage: %s ... <port> <ip>\n", argv[0]);
 	}
@@ -103,20 +125,65 @@ int main(int argc, char *argv[]) {
 		return -fprintf(stderr, "** cannot convert IPv4 address for %s\n", argv[1]);
 	}
 
-	// if((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
-	// 	err_quit("socket");
+	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) errquit("socket");
 
-	prepare();
-	
+	// hand shaking
+	// Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data)
+	Packet handshaking = Packet(0, 1, 0, NULL, 0, NULL);
+	while(1){
+		handshaking.send(sockfd);
+		bzero(&handshaking, sizeof(handshaking));
+		Packet tmp = rcv(sockfd);
+		if(tmp.ack == 0){ 
+			servSeq = tmp.seq;
+			break;
+		}
+	}
+	int n;
+	// start transfer data
+	while(1){
+		send10File(sockfd);
 
-	close(s);
+		// rcv ACK
+		while(1){
+			// TODO: set socket option: timeout
+			bzero(&rcvBuffer, sizeof(rcvBuffer));
+			if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0){
+				cout << "timeout\n";
+				break;
+			}
+			Packet tmp(rcvBuffer);
+			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
+		}
+		
+		while(1){
+			if(waitQueue.empty()) break;
+			auto it = waitQueue.begin();
+			if(it->seq < lastACK) waitQueue.erase(it);
+			else break;
+		}
+
+	}
+
+	close(sockfd);
 }
 
-void prepare(){
-	int seq = 1;
-	int curFile = 0;
-	char buf[MAXLINE];
-	for(curFile = 0; curFile < totalFile; curFile++){
+Packet rcv(int sockfd) {
+	int n;
+	bzero(&rcvBuffer, sizeof(rcvBuffer));
+	if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0) errquit("read");
+	return Packet(rcvBuffer);
+}
+
+void send10File(int sockfd){
+	// send pkt in waitQueue
+	for(auto it = waitQueue.begin(); it < waitQueue.end(); it++){
+		it->send(sockfd);
+	}
+	// send 10 files a time
+	char buf[MAXLINE - 50];
+	int cnt = 10, n;
+	while(cnt-- && curFile < totalFile){
 		char* filename;
 		sprintf(filename, "%s%06d", fileDir, curFile);
 		fstream file;
@@ -125,22 +192,30 @@ void prepare(){
 		
 		bzero(&buf, sizeof(buf));
 		while(file.read(buf, sizeof(buf))){
-			while(sendQueue.size() >= QUEUE_CAPACITY) sleep(1);
 			// Packet(int _seq, bool _fin, int _len, string _filename, bool _fileEnd, char* _data)
 			Packet tmp(seq, 0, sizeof(buf), filename, 0, buf);
 			tmp.calculateCksum();
 			tmp.print();
-			// TODO: lock
-			sendQueue.push(tmp);
+			tmp.send(sockfd);
+			waitQueue.push_back(tmp);
 			seq++;
 			bzero(&buf, sizeof(buf));
 		}
 		Packet tmp(seq, 0, file.gcount(), filename, 1, buf);
 		tmp.calculateCksum();
 		tmp.print();
-		// TODO: lock
-		sendQueue.push(tmp);
-		seq++;
+		tmp.send(sockfd);
+		waitQueue.push_back(tmp);
+		seq++; curFile++;
 		bzero(&buf, sizeof(buf));
+	}
+}
+
+void receiving(int sockfd){
+	int n;	
+	while(1){
+		bzero(&rcvBuffer, sizeof(rcvBuffer));
+		if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0) errquit("write");
+
 	}
 }
