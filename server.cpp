@@ -34,14 +34,24 @@ public:
 
 	Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data){
 		seq = _seq; ack = 0; fin = _fin; len = _len;
-		filename = _filename; fileEnd = _fileEnd;
-		filename = _filename;
-		data = new unsigned char[_len];
-		memcpy(data, _data, _len);
+		fileEnd = _fileEnd;
+		if(_filename != NULL){
+			filename = _filename;
+		} else {
+			filename = "";
+		}
+		if(_data != NULL){
+			data = new unsigned char[_len];
+			memcpy(data, _data, _len);
+		} else {
+			data = NULL;
+		}
 		isAcked = false;
 	};
     Packet(){
 		isAcked = false;
+        data = NULL;
+        filename = "";
 	};
 	void calculateCksum(){
 		unsigned short *ptr = (unsigned short*)data;
@@ -128,13 +138,13 @@ int main(int argc, char *argv[]) {
             perror("recvfrom");
 			break;
         }
-        
+        cout << buffer << "\n";
         Packet rcvPkt;
-        string response = "";
+        string response;
         ss.str("");
         ss.clear();
         ss << buffer;
-        string line = "";
+        string line;
         getline(ss, line);
         rcvPkt.seq = atoi(line.c_str());
         getline(ss, line);
@@ -154,14 +164,16 @@ int main(int argc, char *argv[]) {
         memcpy(rcvPkt.data, line.c_str(), rcvPkt.len);
         // rcvPkt.data = line;
         // char payload[MAXLINE] = rcvPkt.data;
-        string payload(reinterpret_cast<const char*>(rcvPkt.data));
+        // string payload(reinterpret_cast<const char*>(rcvPkt.data));
+        string payload;
+        if(rcvPkt.data) payload = (char*)rcvPkt.data;
         cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
             << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
         // out of order
         if(rcvPkt.seq != (lastAckSeq+1)){
             bzero(&buffer, sizeof(buffer));
             sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
-            Packet temp(seq, lastAckSeq, sizeof(buffer), "", -1, buffer);
+            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
             temp.send(sockfd);
             seq++;
         }
@@ -170,7 +182,7 @@ int main(int argc, char *argv[]) {
                 bzero(&buffer, sizeof(buffer));
                 sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                 lastAckSeq++;
-                Packet temp(seq, lastAckSeq, sizeof(buffer), "", -1, buffer);
+                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
                 temp.send(sockfd);
                 seq++;
                 string filePath = fileDir+rcvPkt.filename;
@@ -182,7 +194,7 @@ int main(int argc, char *argv[]) {
             else{/*cksum is not right*/
                 bzero(&buffer, sizeof(buffer));
                 sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-                Packet temp(seq, lastAckSeq, sizeof(buffer), "", -1, buffer);
+                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
                 temp.send(sockfd);
                 seq++;
             }
