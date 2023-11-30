@@ -61,7 +61,7 @@ public:
 		seq = _seq; ack = 0; fin = _fin; len = _len;
 		fileEnd = _fileEnd;
 		if(_filename != NULL){
-			filename = filename;
+			filename = _filename;
 		} else {
 			filename = "";
 		}
@@ -94,7 +94,9 @@ public:
 	}
 	void send(int sockfd){
 		bzero(&sendBuffer, sizeof(sendBuffer));
-		sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
+		// sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
+		// 	seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
+		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%s\n%d\n%s",
 			seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("write");
