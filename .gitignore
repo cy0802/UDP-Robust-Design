@@ -1,5 +1,12 @@
 __pycache__/
 udpping
 udpechosrv
-test.*
 test
+test.cpp
+udpechosrv.c
+client
+core.20
+core.21
+core.22
+server
+test.*
