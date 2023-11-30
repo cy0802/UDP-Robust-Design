@@ -59,10 +59,18 @@ public:
 
 	Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data){
 		seq = _seq; ack = 0; fin = _fin; len = _len;
-		filename = _filename; fileEnd = _fileEnd;
-		filename = _filename;
-		data = new unsigned char[_len];
-		memcpy(data, _data, _len);
+		fileEnd = _fileEnd;
+		if(_filename != NULL){
+			filename = filename;
+		} else {
+			filename = "";
+		}
+		if(_data != NULL){
+			data = new unsigned char[_len];
+			memcpy(data, _data, _len);
+		} else {
+			data = NULL;
+		}
 		isAcked = false;
 	};
 
@@ -90,6 +98,7 @@ public:
 			seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("write");
+		cout << "sent\n";
 	}
 };
 
@@ -124,12 +133,18 @@ int main(int argc, char *argv[]) {
 	if(inet_pton(AF_INET, argv[argc-1], &sin.sin_addr) != 1) {
 		return -fprintf(stderr, "** cannot convert IPv4 address for %s\n", argv[1]);
 	}
+	socklen_t len = sizeof(sin);
 
-	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) errquit("socket");
+	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("socket");}
+	else cout << "successfully create socket\n";
+
+	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("connect") } 
+	else cout << "successfully connect to server\n";
 
 	// hand shaking
 	// Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data)
 	Packet handshaking = Packet(0, 1, 0, NULL, 0, NULL);
+	handshaking.print();
 	while(1){
 		handshaking.send(sockfd);
 		bzero(&handshaking, sizeof(handshaking));
