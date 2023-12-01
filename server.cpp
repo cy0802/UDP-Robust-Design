@@ -34,20 +34,23 @@ public:
 
 	bool isAcked;
 
-	Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data){
-		seq = _seq; ack = 0; fin = _fin; len = _len;
-		fileEnd = _fileEnd;
-		if(_filename != NULL){
-			filename = _filename;
-		} else {
-			filename = "";
-		}
-		if(_data != NULL){
-			data = new unsigned char[_len];
-			memcpy(data, _data, _len);
-		} else {
-			data = NULL;
-		}
+	Packet(int _seq, int _ack){
+		seq = _seq; ack = _ack;
+        fin = 1; cksum = 0; len = -1; filename = "", fileEnd = true; data = NULL;
+        
+        // seq = _seq; ack = 0; fin = _fin; len = _len;
+		// fileEnd = _fileEnd;
+		// if(_filename != NULL){
+		// 	filename = _filename;
+		// } else {
+		// 	filename = "";
+		// }
+		// if(_data != NULL){
+		// 	data = new unsigned char[_len];
+		// 	memcpy(data, _data, _len);
+		// } else {
+		// 	data = NULL;
+		// }
 		isAcked = false;
 	};
     Packet(){
@@ -166,62 +169,105 @@ int main(int argc, char *argv[]) {
         rcvPkt.filename = line;
         getline(ss, line);
         rcvPkt.fileEnd = static_cast<bool>(atoi(line.c_str()));
-        getline(ss, line);
-        rcvPkt.data = new unsigned char[rcvPkt.len];
-        for(int i = 0; i < rcvPkt.len; i ++){
-            rcvPkt.data[i] = line[i];
+        // getline(ss, line);
+        // cout << "string stream content: "<< ss.str()<<endl;
+        // cout << "parse data: "<<line << endl;
+        if(rcvPkt.len == 0){
+            // cout << "assign data to null!\n";
+            rcvPkt.data = NULL;
         }
+        else{
+            // string payload = "";
+            // while(getline(ss, line)){
+            //     payload += line;
+            // }
+            rcvPkt.data = new unsigned char[rcvPkt.len+1];
+            
+            char payload[MAXLINE];
+            bzero(&payload, MAXLINE);
+            // bzero(&rcvPkt.data, rcvPkt.len);
+            ss.read(payload, rcvPkt.len);
+            int bytesRead = ss.gcount();
+            cout << "bytesRead: " << bytesRead << endl;
+            for(int i = 0; i < rcvPkt.len; i ++){
+                rcvPkt.data[i] = payload[i];
+            }
+            rcvPkt.data[rcvPkt.len] = '\0';
+            // char payload[MAXLINE];
+            // bzero(&payload, MAXLINE);
+            // bzero(&rcvPkt.data, rcvPkt.len);
+            // ss.read(payload, rcvPkt.len);
+            // cout << "payload: " << payload << endl;
+            // int bytesRead = ss.gcount();
+            // cout << "bytesRead: " << bytesRead << endl;
+            // for(int i = 0; i < rcvPkt.len; i ++){
+            //     rcvPkt.data[i] = payload[i];
+            // }
+            // memcpy(rcvPkt.data, payload, rcvPkt.len);
+        }
+
+        
         // strcpy(reinterpret_cast<char*>(rcvPkt.data), line.c_str());
         // memcpy(rcvPkt.data, line.c_str(), rcvPkt.len);
         // string payload(reinterpret_cast<const char*>(rcvPkt.data));
         // string payload="";
         // if(rcvPkt.data) payload = (char*)rcvPkt.data;
-        cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
-            << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
+        
         // handshake
         if(rcvPkt.data == NULL && !handshake){
+            // cout << "in handshake\n";
             lastAckSeq++;
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            Packet temp(seq, lastAckSeq);
             temp.send(sockfd);
             seq++;
             handshake = true;
             continue;
         }
         else if(rcvPkt.data == NULL && handshake){/*if has handshaked, but receive NULL data*/
+            // cout << "data is null\n";
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            Packet temp(seq, lastAckSeq);
             temp.send(sockfd);
             seq++;
             continue;
         }
-
+        cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
+            << rcvPkt.cksum << ", len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
         // out of order
         if(rcvPkt.seq != (lastAckSeq+1)){
+            cout << "====data out of order====\n";
+            cout << "expect seq: " << (lastAckSeq+1) << endl;
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            Packet temp(seq, lastAckSeq);
             temp.send(sockfd);
             seq++;
         }
         else{/*order right, calculate the cksum*/
-            if(servCalculateCksum(rcvPkt.data, rcvPkt.len) == rcvPkt.cksum){
+            uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
+            cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
+            if(servCksum == rcvPkt.cksum){
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
+                cout << "====have correct cksum, open file====\n";
                 lastAckSeq++;
-                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+                Packet temp(seq, lastAckSeq);
                 temp.send(sockfd);
                 seq++;
-                string filePath = fileDir+rcvPkt.filename;
-                fileOut.open(filePath);
+                string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
+                string filePath = fileDir+file;
+                cout << "filePath: " << filePath << endl;
+                fileOut.open(filePath, std::ios_base::app);
                 if(fileOut.fail()) errquit("fstream open file");
                 fileOut << rcvPkt.data;
                 fileOut.close();
             }
             else{/*cksum is not right*/
+                cout << "====cksum error!====\n";
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+                Packet temp(seq, lastAckSeq);
                 temp.send(sockfd);
                 seq++;
             }
