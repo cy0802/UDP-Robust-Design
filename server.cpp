@@ -97,6 +97,7 @@ int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
 	}
+    system("rm -rf ./serverStore/*");
     string fileDir = argv[1];
 	int totalFile = atoi(argv[2]);
     stringstream ss;
