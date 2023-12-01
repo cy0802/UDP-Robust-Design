@@ -47,11 +47,10 @@ public:
 
 	Packet(char* raw){
 		string _raw = raw;
-		cout << raw << endl;
+		// cout << raw << endl;
 		stringstream ss; ss.clear();
-		string tmp;
 		ss << raw;
-		ss >> tmp >> seq >> tmp >> ack >> tmp >> fin >> tmp >> cksum;
+		ss >> seq >> ack >> fin >> cksum;
 		len = 0;
 		fileEnd = 0;
 		filename = "";
@@ -60,7 +59,7 @@ public:
 	}
 
 	Packet(const Packet &pkt){
-		cout << "copy constructor called\nseq: " << pkt.seq << "\n";
+		// cout << "copy constructor called\nseq: " << pkt.seq << "\n";
 		this->seq = pkt.seq; this->ack = pkt.len; this->cksum = pkt.cksum;
 		this->filename = pkt.filename; this->fileEnd = pkt.fileEnd; this->fin = pkt.fin;
 		if(pkt.data != NULL){
@@ -89,7 +88,7 @@ public:
 	};
 
 	~Packet(){
-		cout << "destructor called\n";
+		// cout << "destructor called\n";
 		if(data != NULL) delete[] data;
 	}
 
@@ -111,7 +110,7 @@ public:
 		bzero(&sendBuffer, sizeof(sendBuffer));
 		// sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 		// 	seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
-		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s\n",
+		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s",
 			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("write");
@@ -140,9 +139,9 @@ int main(int argc, char *argv[]) {
 
 	srand(time(0) ^ getpid());
 
-	setvbuf(stdin, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
-	setvbuf(stdout, NULL, _IONBF, 0);
+	// setvbuf(stdin, NULL, _IONBF, 0);
+	// setvbuf(stderr, NULL, _IONBF, 0);
+	// setvbuf(stdout, NULL, _IONBF, 0);
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -154,6 +153,9 @@ int main(int argc, char *argv[]) {
 
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("socket");}
 	else cout << "successfully create socket\n";
+
+	struct timeval timeout = {1, 0}; //set timeout for 1 seconds
+	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
 	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("connect") } 
 	else cout << "successfully connect to server\n";
@@ -174,9 +176,9 @@ int main(int argc, char *argv[]) {
 	int n;
 	// start transfer data
 	while(1){
-		cout << "*\n";
+		// cout << "*\n";
 		send10File(sockfd);
-		cout << "*\n";
+		// cout << "*\n";
 		// rcv ACK
 		while(1){
 			// TODO: set socket option: timeout
@@ -186,6 +188,8 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			Packet tmp(rcvBuffer);
+			cout << "rcv";
+			tmp.print();
 			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
 		}
 		
@@ -217,11 +221,14 @@ void send10File(int sockfd){
 	char buf[MAXLINE - 50];
 	int cnt = 10, n;
 	while(cnt-- && curFile < totalFile){
-		char filename[30];
-		sprintf(filename, "%s%06d", fileDir, curFile);
+		char filepath[30];
+		sprintf(filepath, "%s%06d", fileDir, curFile);
 		fstream file;
-		file.open(filename);
+		file.open(filepath);
 		if(file.fail()) errquit("fstream open file");
+
+		char filename[10];
+		sprintf(filename, "%06d", curFile);
 		
 		bzero(&buf, sizeof(buf));
 		while(file.read(buf, sizeof(buf))){
@@ -230,9 +237,9 @@ void send10File(int sockfd){
 			tmp.calculateCksum();
 			tmp.print();
 			tmp.send(sockfd);
-			cout << "*\n";
+			// cout << "*\n";
 			waitQueue.push_back(tmp);
-			cout << "*\n";
+			// cout << "*\n";
 			seq++;
 			bzero(&buf, sizeof(buf));
 		}

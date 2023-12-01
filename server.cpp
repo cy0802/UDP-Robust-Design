@@ -75,7 +75,7 @@ public:
     //         }
 	void send(int sockfd){
 		bzero(&buffer, sizeof(buffer));
-		sprintf(buffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s\n",
+		sprintf(buffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s",
 			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0) errquit("write");
@@ -178,19 +178,28 @@ int main(int argc, char *argv[]) {
         // if(rcvPkt.data) payload = (char*)rcvPkt.data;
         cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
             << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
+        // cout << "rcvPkt.data == NULL ? " << (rcvPkt.data == NULL) << "\n";
+        // for(int i = 0; i < sizeof(rcvPkt.data) / sizeof(unsigned char); i++) cout << (int)rcvPkt.data[i] << " ";
+        // cout << "\n";
         // handshake
-        if(rcvPkt.data == NULL && !handshake){
+        if(rcvPkt.len == 0 && !handshake){
             lastAckSeq++;
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            Packet temp(seq, 0, sizeof(buffer), NULL, 0, NULL);
+            temp.ack = lastAckSeq;
+            cout << "send";
+            temp.print();
             temp.send(sockfd);
             seq++;
             handshake = true;
             continue;
         }
-        else if(rcvPkt.data == NULL && handshake){/*if has handshaked, but receive NULL data*/
+        else if(rcvPkt.len == 0 && handshake){/*if has handshaked, but receive NULL data*/
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            Packet temp(seq, 0, sizeof(buffer), NULL, 0, NULL);
+            temp.ack = lastAckSeq;
+            cout << "send";
+            temp.print();
             temp.send(sockfd);
             seq++;
             continue;
@@ -200,7 +209,10 @@ int main(int argc, char *argv[]) {
         if(rcvPkt.seq != (lastAckSeq+1)){
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            Packet temp(seq, 0, sizeof(buffer), NULL, -0, NULL);
+            temp.ack = lastAckSeq;
+            cout << "send";
+            temp.print();
             temp.send(sockfd);
             seq++;
         }
@@ -208,8 +220,11 @@ int main(int argc, char *argv[]) {
             if(servCalculateCksum(rcvPkt.data, rcvPkt.len) == rcvPkt.cksum){
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
+                rcvPkt.print();
                 lastAckSeq++;
-                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+                Packet temp(seq, 0, sizeof(buffer), NULL, 0, NULL);
+                // (int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data)
+                temp.ack = lastAckSeq;
                 temp.send(sockfd);
                 seq++;
                 string filePath = fileDir+rcvPkt.filename;
@@ -222,6 +237,9 @@ int main(int argc, char *argv[]) {
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
                 Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+                temp.ack = lastAckSeq;
+                cout << "send";
+                temp.print();
                 temp.send(sockfd);
                 seq++;
             }
