@@ -53,8 +53,22 @@ public:
 		ss << raw;
 		ss >> tmp >> seq >> tmp >> ack >> tmp >> fin >> tmp >> cksum;
 		len = 0;
+		fileEnd = 0;
 		filename = "";
 		data = NULL;
+		// cout << "*";
+	}
+
+	Packet(const Packet &pkt){
+		cout << "copy constructor called\nseq: " << pkt.seq << "\n";
+		this->seq = pkt.seq; this->ack = pkt.len; this->cksum = pkt.cksum;
+		this->filename = pkt.filename; this->fileEnd = pkt.fileEnd; this->fin = pkt.fin;
+		if(pkt.data != NULL){
+			this->data = new unsigned char[pkt.len];
+			memcpy(this->data, pkt.data, len);
+		} else {
+			this->data = NULL;
+		}
 	}
 
 	Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data){
@@ -75,7 +89,8 @@ public:
 	};
 
 	~Packet(){
-		delete[] data;
+		cout << "destructor called\n";
+		if(data != NULL) delete[] data;
 	}
 
 	void calculateCksum(){
@@ -100,7 +115,7 @@ public:
 			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("write");
-		cout << "sent\n";
+		// cout << "sent\n";
 	}
 };
 
@@ -159,8 +174,9 @@ int main(int argc, char *argv[]) {
 	int n;
 	// start transfer data
 	while(1){
+		cout << "*\n";
 		send10File(sockfd);
-
+		cout << "*\n";
 		// rcv ACK
 		while(1){
 			// TODO: set socket option: timeout
@@ -201,7 +217,7 @@ void send10File(int sockfd){
 	char buf[MAXLINE - 50];
 	int cnt = 10, n;
 	while(cnt-- && curFile < totalFile){
-		char* filename;
+		char filename[30];
 		sprintf(filename, "%s%06d", fileDir, curFile);
 		fstream file;
 		file.open(filename);
@@ -214,7 +230,9 @@ void send10File(int sockfd){
 			tmp.calculateCksum();
 			tmp.print();
 			tmp.send(sockfd);
+			cout << "*\n";
 			waitQueue.push_back(tmp);
+			cout << "*\n";
 			seq++;
 			bzero(&buf, sizeof(buf));
 		}
@@ -228,11 +246,11 @@ void send10File(int sockfd){
 	}
 }
 
-void receiving(int sockfd){
-	int n;	
-	while(1){
-		bzero(&rcvBuffer, sizeof(rcvBuffer));
-		if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0) errquit("write");
+// void receiving(int sockfd){
+// 	int n;	
+// 	while(1){
+// 		bzero(&rcvBuffer, sizeof(rcvBuffer));
+// 		if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0) errquit("write");
 
-	}
-}
+// 	}
+// }
