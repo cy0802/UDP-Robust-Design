@@ -3,6 +3,7 @@
         "*.embeddedhtml": "html",
         "deque": "c",
         "vector": "c",
-        "xstring": "c"
+        "xstring": "c",
+        "iostream": "cpp"
     }
 }

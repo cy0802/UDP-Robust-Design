@@ -78,7 +78,7 @@ public:
     //         }
 	void send(int sockfd){
 		bzero(&buffer, sizeof(buffer));
-		sprintf(buffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s\n",
+		sprintf(buffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s",
 			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0) errquit("write");
@@ -213,7 +213,8 @@ int main(int argc, char *argv[]) {
         // string payload(reinterpret_cast<const char*>(rcvPkt.data));
         // string payload="";
         // if(rcvPkt.data) payload = (char*)rcvPkt.data;
-        
+        cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
+            << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
         // handshake
         if(rcvPkt.data == NULL && !handshake){
             // cout << "in handshake\n";
@@ -268,7 +269,7 @@ int main(int argc, char *argv[]) {
                 cout << "====cksum error!====\n";
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-                Packet temp(seq, lastAckSeq);
+                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
                 temp.send(sockfd);
                 seq++;
             }
