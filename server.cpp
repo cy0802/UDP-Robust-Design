@@ -19,6 +19,8 @@ using namespace std;
 
 const int port = 47777;
 char buffer[MAXLINE];
+// const char *hello = "Hello from server"; 
+struct sockaddr_in servaddr, clientaddr; 
 class Packet{
 public:
 	int seq;
@@ -71,12 +73,12 @@ public:
     //             perror("sending");
     //             exit(EXIT_FAILURE);
     //         }
-	void sendto(int sockfd){
+	void send(int sockfd){
 		bzero(&buffer, sizeof(buffer));
-		sprintf(buffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
-			seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
+		sprintf(buffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s\n",
+			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
-		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("write");
+		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &servaddr, sizeof(servaddr))) < 0) errquit("write");
 	}
 };
 uint16_t servCalculateCksum(unsigned char* data, int len){
@@ -104,15 +106,14 @@ int main(int argc, char *argv[]) {
 	setvbuf(stdin, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 	setvbuf(stdout, NULL, _IONBF, 0); 
-    // const char *hello = "Hello from server"; 
-    struct sockaddr_in servaddr, clientaddr; 
+    
     // struct timeval timeout = {2, 0}; //set timeout for 2 seconds
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
     // setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
-       
+    
     memset(&servaddr, 0, sizeof(servaddr)); 
     memset(&clientaddr, 0, sizeof(clientaddr)); 
        
@@ -120,7 +121,8 @@ int main(int argc, char *argv[]) {
     servaddr.sin_family = AF_INET; // IPv4 
     // servaddr.sin_addr.s_addr = INADDR_ANY; 
     servaddr.sin_port = htons(strtol(argv[argc-1], NULL, 0));
-       
+    // if(connect(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0){ errquit("connect") } 
+	// else cout << "successfully connect to server\n";   
     // Bind the socket with the server address 
     if ( bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) < 0 ) { 
         perror("bind failed"); 
@@ -129,8 +131,12 @@ int main(int argc, char *argv[]) {
     
     socklen_t clilen;
     int seq = 101;
-    int lastAckSeq = 0;//Up to client
+    int lastAckSeq = -1;//Up to client
+    bool handshake = false;
     while(1){
+        Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+            temp.send(sockfd);
+            
         clilen = sizeof(clientaddr);
         int n;
         bzero(&buffer, sizeof(buffer));
@@ -162,43 +168,59 @@ int main(int argc, char *argv[]) {
         getline(ss, line);
         // strcpy(reinterpret_cast<char*>(rcvPkt.data), line.c_str());
         memcpy(rcvPkt.data, line.c_str(), rcvPkt.len);
-        // rcvPkt.data = line;
-        // char payload[MAXLINE] = rcvPkt.data;
         // string payload(reinterpret_cast<const char*>(rcvPkt.data));
-        string payload;
-        if(rcvPkt.data) payload = (char*)rcvPkt.data;
+        // string payload="";
+        // if(rcvPkt.data) payload = (char*)rcvPkt.data;
         cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
             << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
-        // out of order
-        if(rcvPkt.seq != (lastAckSeq+1)){
-            bzero(&buffer, sizeof(buffer));
-            sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
-            Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
-            temp.send(sockfd);
-            seq++;
-        }
-        else{/*order right, calculate the cksum*/
-            if(servCalculateCksum(rcvPkt.data, rcvPkt.len) == rcvPkt.cksum){
-                bzero(&buffer, sizeof(buffer));
-                sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
-                lastAckSeq++;
-                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
-                temp.send(sockfd);
-                seq++;
-                string filePath = fileDir+rcvPkt.filename;
-                fileOut.open(filePath);
-                if(fileOut.fail()) errquit("fstream open file");
-                fileOut << rcvPkt.data;
-                fileOut.close();
-            }
-            else{/*cksum is not right*/
-                bzero(&buffer, sizeof(buffer));
-                sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
-                temp.send(sockfd);
-                seq++;
-            }
-        }
+        // handshake
+        // if(rcvPkt.data == NULL && !handshake){
+        //     lastAckSeq++;
+        //     Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+        //     temp.send(sockfd);
+        //     seq++;
+        //     handshake = true;
+        //     continue;
+        // }
+        // else if(rcvPkt.data == NULL && handshake){/*if has handshaked, but receive NULL data*/
+        //     bzero(&buffer, sizeof(buffer));
+        //     // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
+        //     Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+        //     temp.send(sockfd);
+        //     seq++;
+        //     continue;
+        // }
+
+        // // out of order
+        // if(rcvPkt.seq != (lastAckSeq+1)){
+        //     bzero(&buffer, sizeof(buffer));
+        //     // sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
+        //     Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+        //     temp.send(sockfd);
+        //     seq++;
+        // }
+        // else{/*order right, calculate the cksum*/
+        //     if(servCalculateCksum(rcvPkt.data, rcvPkt.len) == rcvPkt.cksum){
+        //         bzero(&buffer, sizeof(buffer));
+        //         // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
+        //         lastAckSeq++;
+        //         Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+        //         temp.send(sockfd);
+        //         seq++;
+        //         string filePath = fileDir+rcvPkt.filename;
+        //         fileOut.open(filePath);
+        //         if(fileOut.fail()) errquit("fstream open file");
+        //         fileOut << rcvPkt.data;
+        //         fileOut.close();
+        //     }
+        //     else{/*cksum is not right*/
+        //         bzero(&buffer, sizeof(buffer));
+        //         // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
+        //         Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+        //         temp.send(sockfd);
+        //         seq++;
+        //     }
+        // }
         
         // // bzero(&buffer, sizeof(buffer));
         // // sprintf(buffer, "receive data!\n");

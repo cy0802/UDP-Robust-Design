@@ -96,8 +96,8 @@ public:
 		bzero(&sendBuffer, sizeof(sendBuffer));
 		// sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 		// 	seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
-		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%s\n%d\n%s",
-			seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
+		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s\n",
+			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("write");
 		cout << "sent\n";
