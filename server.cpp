@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
         // sprintf(buffer, "hello, world!");
         // Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, buffer);
         //     temp.send(sockfd);
-            
+        // cout << "in while loop\n";
         clilen = sizeof(clientaddr);
         int n;
         bzero(&buffer, sizeof(buffer));
@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
         // cout << "string stream content: "<< ss.str()<<endl;
         // cout << "parse data: "<<line << endl;
         if(rcvPkt.len == 0){
-            // cout << "assign data to null!\n";
+            cout << "assign data to null!\n";
             rcvPkt.data = NULL;
         }
         else{
@@ -213,11 +213,11 @@ int main(int argc, char *argv[]) {
         // string payload(reinterpret_cast<const char*>(rcvPkt.data));
         // string payload="";
         // if(rcvPkt.data) payload = (char*)rcvPkt.data;
-        cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
-            << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
+        // cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
+        //     << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
         // handshake
         if(rcvPkt.data == NULL && !handshake){
-            // cout << "in handshake\n";
+            cout << "in handshake\n";
             lastAckSeq++;
             Packet temp(seq, lastAckSeq);
             temp.send(sockfd);
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         else if(rcvPkt.data == NULL && handshake){/*if has handshaked, but receive NULL data*/
-            // cout << "data is null\n";
+            cout << "data is null\n";
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
             Packet temp(seq, lastAckSeq);
@@ -269,7 +269,7 @@ int main(int argc, char *argv[]) {
                 cout << "====cksum error!====\n";
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-                Packet temp(seq, lastAckSeq, sizeof(buffer), NULL, -1, NULL);
+                Packet temp(seq, lastAckSeq);
                 temp.send(sockfd);
                 seq++;
             }
