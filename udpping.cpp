@@ -63,8 +63,8 @@ public:
 		this->seq = pkt.seq; this->ack = pkt.len; this->cksum = pkt.cksum;
 		this->filename = pkt.filename; this->fileEnd = pkt.fileEnd; this->fin = pkt.fin;
 		if(pkt.data != NULL){
-			this->data = new unsigned char[pkt.len];
-			memcpy(this->data, pkt.data, len);
+			this->data = new unsigned char[pkt.len + 1];
+			memcpy(this->data, pkt.data, len + 1);
 		} else {
 			this->data = NULL;
 		}
@@ -79,13 +79,21 @@ public:
 			filename = "";
 		}
 		if(_data != NULL){
-			data = new unsigned char[_len];
-			memcpy(data, _data, _len);
+			data = new unsigned char[_len + 1];
+			memcpy(data, _data, _len + 1);
 		} else {
 			data = NULL;
 		}
 		isAcked = false;
 	};
+
+	Packet &operator=(const Packet &other){
+		data = new unsigned char[other.len + 1];
+		if(this != &other){
+			memcpy(data, other.data, len + 1);
+		}
+		return *this;
+	}
 
 	~Packet(){
 		// cout << "destructor called\n";
@@ -122,6 +130,7 @@ static int sockfd = -1;
 static struct sockaddr_in sin;
 vector<Packet> waitQueue;
 int cnt = WINDOW_SIZE;
+int lastSentSeq = -1;
 int totalFile;
 char* fileDir;
 
@@ -179,9 +188,9 @@ int main(int argc, char *argv[]) {
 		// cout << "*\n";
 		send10File(sockfd);
 		// cout << "*\n";
+		
 		// rcv ACK
 		while(1){
-			// TODO: set socket option: timeout
 			bzero(&rcvBuffer, sizeof(rcvBuffer));
 			if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0){
 				cout << "timeout\n";
@@ -199,7 +208,7 @@ int main(int argc, char *argv[]) {
 			if(it->seq < lastACK) waitQueue.erase(it);
 			else break;
 		}
-
+		if(curFile == totalFile - 1 && waitQueue.empty()) break;
 	}
 
 	close(sockfd);
@@ -238,7 +247,7 @@ void send10File(int sockfd){
 			tmp.print();
 			tmp.send(sockfd);
 			// cout << "*\n";
-			waitQueue.push_back(tmp);
+			waitQueue.emplace_back(tmp);
 			// cout << "*\n";
 			seq++;
 			bzero(&buf, sizeof(buf));
@@ -247,7 +256,7 @@ void send10File(int sockfd){
 		tmp.calculateCksum();
 		tmp.print();
 		tmp.send(sockfd);
-		waitQueue.push_back(tmp);
+		waitQueue.emplace_back(tmp);
 		seq++; curFile++;
 		bzero(&buf, sizeof(buf));
 	}
