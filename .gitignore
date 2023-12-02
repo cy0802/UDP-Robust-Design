@@ -10,3 +10,5 @@ core.21
 core.22
 server
 test.*
+serverStore/
+*.out
