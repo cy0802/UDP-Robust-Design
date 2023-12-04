@@ -19,9 +19,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#define MAXLINE 60000
+#define MAXLINE 1400
 #define WINDOW_SIZE 200
-#define QUEUE_CAPACITY 1000
+#define QUEUE_CAPACITY 20
 #define errquit(m) { perror(m); exit(-1); }
 using namespace std;
 
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
 	// hand shaking
 	// Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data)
 	Packet handshaking = Packet(0, 1, 0, nullptr, 0, nullptr);
-	handshaking.print();
+	// handshaking.print();
 	while(1){
 		handshaking.send(sockfd);
 		// bzero(&handshaking, sizeof(handshaking));
@@ -209,14 +209,14 @@ int main(int argc, char *argv[]) {
 		bzero(&rcvBuffer, sizeof(rcvBuffer));
 		int n;
 		if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) >= 0){
-			cout << "handshaking success\n";
+			// cout << "handshaking success\n";
 			Packet tmp = Packet(rcvBuffer);
-			cout << "rcv";
-			tmp.print();
+			// cout << "rcv";
+			// tmp.print();
 			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
 			break;
 		} else {
-			cout << "timeout resend\n";
+			// cout << "timeout resend\n";
 		}
 	}
 	int n;
@@ -228,30 +228,30 @@ int main(int argc, char *argv[]) {
 		// 	cout << it->seq << " ";
 		// cout << "\nseq: " << seq << " / lastACK: " << lastACK << "\n";
 
-		cout << "send1File() ==========================================\n";
+		// cout << "send1File() ==========================================\n";
 		send1File(sockfd);
-		cout << "=======================================================\n";
+		// cout << "=======================================================\n";
 
-		cout << "waitqueue.size: " << waitQueue.size() << "\n";
-		for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
-			cout << it->seq << " ";
+		// cout << "waitqueue.size: " << waitQueue.size() << "\n";
+		// for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
+		// 	cout << it->seq << " ";
 		
-		cout << "\nrcv ACK ===============================================\n";
+		// cout << "\nrcv ACK ===============================================\n";
 		// rcv ACK
 		while(1){
 			bzero(&rcvBuffer, sizeof(rcvBuffer));
 			if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0){
-				cout << "timeout\n";
+				// cout << "timeout\n";
 				break;
 			}
 			Packet tmp(rcvBuffer);
-			cout << "rcv";
-			tmp.print();
+			// cout << "rcv";
+			// tmp.print();
 			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
 		}
-		cout << "========================================================\n";
+		// cout << "========================================================\n";
 
-		cout << "remove ACKed pkt from waitQueue ========================\n";
+		// cout << "remove ACKed pkt from waitQueue ========================\n";
 		while(1){
 			if(waitQueue.empty()) break;
 			auto it = waitQueue.begin();
@@ -264,11 +264,11 @@ int main(int argc, char *argv[]) {
 		}
 		if(curFile == totalFile && waitQueue.empty()) break;
 		// cout << "curFile: " << curFile << "\nwaitQueue.size:  " << waitQueue.size() << "\n";
-		cout << "lastACK: " << lastACK << "\n";
-		cout << "waitqueue.size: " << waitQueue.size() << "\n";
-		for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
-			cout << it->seq << " ";
-		cout << "======================================================\n";
+		// cout << "lastACK: " << lastACK << "\n";
+		// cout << "waitqueue.size: " << waitQueue.size() << "\n";
+		// for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
+		// 	cout << it->seq << " ";
+		// cout << "======================================================\n";
 	}
 
 	close(sockfd);
@@ -284,7 +284,7 @@ Packet rcv(int sockfd) {
 void send1File(int sockfd){
 	// send pkt in waitQueue
 	for(auto it = waitQueue.begin(); it < waitQueue.end(); it++){
-		it->print();
+		// it->print();
 		// cout << it->data << "\n";
 		it->send(sockfd);
 	}
@@ -310,7 +310,7 @@ void send1File(int sockfd){
 			
 			Packet tmp(seq, 0, sizeof(buf), filename, 0, buf);
 			tmp.calculateCksum();
-			tmp.print();
+			// tmp.print();
 			tmp.send(sockfd);
 			// cout << "*\n";
 			waitQueue.push_back(tmp);
@@ -321,7 +321,7 @@ void send1File(int sockfd){
 		}
 		Packet temp(seq, 0, file.gcount(), filename, 1, buf);
 		temp.calculateCksum();
-		temp.print();
+		// temp.print();
 		temp.send(sockfd);
 		waitQueue.push_back(temp);
 		// delete [] tmp.data;

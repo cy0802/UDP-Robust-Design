@@ -12,9 +12,9 @@
 #include <cstdlib>
 #include<fstream>
 using namespace std;
-#define MAXLINE 60000
+#define MAXLINE 1400
 #define WINDOW_SIZE 200
-#define QUEUE_CAPACITY 1000
+#define QUEUE_CAPACITY 20
 #define errquit(m) { perror(m); exit(-1); }
 
 const int port = 47777;
@@ -71,6 +71,10 @@ public:
 		printf("seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nContent Length: %d\nfileEnd: %d\n%s\n",
 			seq, ack, fin, cksum, filename.c_str(), len, fileEnd, data);
 		printf("====================================================\n");
+	}
+    ~Packet(){
+		// cout << "\t\tdestructor called\tseq: " << seq << "\n";
+		if(data != nullptr) delete[] data;
 	}
     // if(sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *) &cliaddr, sizeof(cliaddr)) == -1){
     //             perror("sending");
@@ -217,7 +221,7 @@ int main(int argc, char *argv[]) {
         //     << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
         // handshake
         if(rcvPkt.data == NULL && !handshake){
-            cout << "in handshake\n";
+            // cout << "in handshake\n";
             lastAckSeq++;
             Packet temp(seq, lastAckSeq);
             temp.send(sockfd);
@@ -226,7 +230,7 @@ int main(int argc, char *argv[]) {
             continue;
         }
         else if(rcvPkt.data == NULL && handshake){/*if has handshaked, but receive NULL data*/
-            cout << "data is null\n";
+            // cout << "data is null\n";
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
             Packet temp(seq, lastAckSeq);
@@ -234,12 +238,13 @@ int main(int argc, char *argv[]) {
             seq++;
             continue;
         }
-        cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
-            << rcvPkt.cksum << ", len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
+        // cout << "rcv seq: " << rcvPkt.seq << "\n";
+        // cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
+        //   << rcvPkt.cksum << ", len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
         // out of order
         if(rcvPkt.seq != (lastAckSeq+1)){
-            cout << "====data out of order====\n";
-            cout << "expect seq: " << (lastAckSeq+1) << endl;
+            // cout << "====data out of order====\n";
+            // cout << "expect seq: " << (lastAckSeq+1) << endl;
             bzero(&buffer, sizeof(buffer));
             // sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
             Packet temp(seq, lastAckSeq);
@@ -247,26 +252,28 @@ int main(int argc, char *argv[]) {
             seq++;
         }
         else{/*order right, calculate the cksum*/
-            uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
-            cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
+            // testing
+            // uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
+            uint16_t servCksum = rcvPkt.cksum;
+            // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
             if(servCksum == rcvPkt.cksum){
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
-                cout << "====have correct cksum, open file====\n";
+                // cout << "====have correct cksum, open file====\n";
                 lastAckSeq++;
                 Packet temp(seq, lastAckSeq);
                 temp.send(sockfd);
                 seq++;
                 string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
                 string filePath = fileDir + "/" + file;
-                cout << "filePath: " << filePath << endl;
+                // cout << "filePath: " << filePath << endl;
                 fileOut.open(filePath, std::ios_base::app);
                 if(fileOut.fail()) errquit("server fstream open file");
                 fileOut << rcvPkt.data;
                 fileOut.close();
             }
             else{/*cksum is not right*/
-                cout << "====cksum error!====\n";
+                // cout << "====cksum error!====\n";
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
                 Packet temp(seq, lastAckSeq);
