@@ -12,9 +12,9 @@
 #include <cstdlib>
 #include<fstream>
 using namespace std;
-#define MAXLINE 300 //60000
+#define MAXLINE 60000
 #define WINDOW_SIZE 200
-#define QUEUE_CAPACITY 10 //1000
+#define QUEUE_CAPACITY 1000
 #define errquit(m) { perror(m); exit(-1); }
 
 const int port = 47777;
@@ -81,7 +81,7 @@ public:
 		sprintf(buffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s",
 			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
 		int n;
-		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0) errquit("write");
+		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0) errquit("server write");
 	}
 };
 uint16_t servCalculateCksum(unsigned char* data, int len){
@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
         // cout << "string stream content: "<< ss.str()<<endl;
         // cout << "parse data: "<<line << endl;
         if(rcvPkt.len == 0){
-            cout << "assign data to null!\n";
+            // cout << "assign data to null!\n";
             rcvPkt.data = NULL;
         }
         else{
@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
             // bzero(&rcvPkt.data, rcvPkt.len);
             ss.read(payload, rcvPkt.len);
             int bytesRead = ss.gcount();
-            cout << "bytesRead: " << bytesRead << endl;
+            // cout << "bytesRead: " << bytesRead << endl;
             for(int i = 0; i < rcvPkt.len; i ++){
                 rcvPkt.data[i] = payload[i];
             }
@@ -258,10 +258,10 @@ int main(int argc, char *argv[]) {
                 temp.send(sockfd);
                 seq++;
                 string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
-                string filePath = fileDir+file;
+                string filePath = fileDir + "/" + file;
                 cout << "filePath: " << filePath << endl;
                 fileOut.open(filePath, std::ios_base::app);
-                if(fileOut.fail()) errquit("fstream open file");
+                if(fileOut.fail()) errquit("server fstream open file");
                 fileOut << rcvPkt.data;
                 fileOut.close();
             }
