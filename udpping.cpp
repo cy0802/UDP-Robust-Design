@@ -141,10 +141,11 @@ public:
 		// printf("seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nContent Length: %d\nfileEnd: %d\n%s\n",
 		// 	seq, ack, fin, cksum, filename.c_str(), len, fileEnd, data);
 		// printf("====================================================\n");
-		cout << " seq: " << seq << "\tack: " << ack << "\n";
+		cout << " seq: " << seq << "\tack: " << ack <<"\n";
 	}
 	void send(int sockfd){
 		bzero(&sendBuffer, sizeof(sendBuffer));
+		// cout << "send data: " << data << endl;
 		// sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 		// 	seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
 		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s",
@@ -169,7 +170,7 @@ Packet rcv(int sockfd);
 int main(int argc, char *argv[]) {
 	
 	if(argc < 3) {
-		return -fprintf(stderr, "usage: %s ... <port> <ip>\n", argv[0]);
+		return -fprintf(stderr, "usage: %s ... <dir> <totalFile> <port> <ip>\n", argv[0]);
 	}
 
 	fileDir = argv[1];
@@ -177,9 +178,9 @@ int main(int argc, char *argv[]) {
 
 	srand(time(0) ^ getpid());
 
-	// setvbuf(stdin, nullptr, _IONBF, 0);
-	// setvbuf(stderr, nullptr, _IONBF, 0);
-	// setvbuf(stdout, nullptr, _IONBF, 0);
+	setvbuf(stdin, nullptr, _IONBF, 0);
+	setvbuf(stderr, nullptr, _IONBF, 0);
+	setvbuf(stdout, nullptr, _IONBF, 0);
 
 	memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -236,7 +237,7 @@ int main(int argc, char *argv[]) {
 		// for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
 		// 	cout << it->seq << " ";
 		
-		// cout << "\nrcv ACK ===============================================\n";
+		cout << "\nrcv ACK ===============================================\n";
 		// rcv ACK
 		while(1){
 			bzero(&rcvBuffer, sizeof(rcvBuffer));
@@ -245,8 +246,8 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			Packet tmp(rcvBuffer);
-			// cout << "rcv";
-			// tmp.print();
+			cout << "rcv";
+			tmp.print();
 			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
 		}
 		// cout << "========================================================\n";
@@ -310,7 +311,8 @@ void send1File(int sockfd){
 			
 			Packet tmp(seq, 0, sizeof(buf), filename, 0, buf);
 			tmp.calculateCksum();
-			// tmp.print();
+			cout <<"========send=======\n";
+			tmp.print();
 			tmp.send(sockfd);
 			// cout << "*\n";
 			waitQueue.push_back(tmp);
@@ -321,7 +323,8 @@ void send1File(int sockfd){
 		}
 		Packet temp(seq, 0, file.gcount(), filename, 1, buf);
 		temp.calculateCksum();
-		// temp.print();
+		cout <<"========send=======\n";
+		temp.print();
 		temp.send(sockfd);
 		waitQueue.push_back(temp);
 		// delete [] tmp.data;
