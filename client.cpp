@@ -178,16 +178,30 @@ int main(int argc, char *argv[]){
         }
         if(allsent) break;
 
-        // rcv bitset: not working
-        // int n;
-        // char rcvbuffer[3000];
-        // do {
-        //     bzero(&rcvbuffer, sizeof(rcvbuffer));
-        // } while((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) >= 0);
-        // bitset<23000> bset(string(rcvbuffer));
-        // for(int i = 0; i < sendQueue.size(); i++){
-        //     if(bset[i] && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
-        // }
+        // rcv bitset: haven't test
+        int n;
+        char rcvbuffer[23000];
+        do {
+            bzero(&rcvbuffer, sizeof(rcvbuffer));
+        } while((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) >= 0);
+        bitset<23000> bset(rcvbuffer);
+        for(int i = 0; i < sendQueue.size(); i++){
+			if(!bset[i] && sendQueue[i].data == nullptr){
+				// if the packet is marked not received but the data is deleted, read it again
+				char* filepath;
+				sprintf(filepath, "%s/%s", fileDir, sendQueue[i].filename);
+				fstream file;
+				file.open(filepath, ios::in);
+				if(file.fail()) errquit("client fstream open file");
+				
+				file.seekg(sendQueue[i].offset);
+				char buf[MTU]; bzero(&buf, sizeof(buf));
+				file.read(buf, sendQueue[i].len);
+				sendQueue[i].data = new unsigned char[sendQueue[i].len];
+				memcpy(sendQueue[i].data, buf, sendQueue[i].len);
+			}
+            if(bset[i] && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
+        }
     }
     close(sockfd);
     return 0;
