@@ -21,7 +21,7 @@ using namespace std;
 const int port = 47777;
 const int pktNum = 23000;
 char buffer[MAXLINE+100];
-uint8_t recvPktStat[pktNum];
+char recvPktStat[pktNum];
 // const char *hello = "Hello from server"; 
 struct sockaddr_in servaddr, clientaddr; 
 class Packet{
@@ -34,7 +34,7 @@ public:
 	bool fileEnd;
 	unsigned char* data;
 
-    Packet(uint8_t *_data){
+    Packet(char *_data){
         // char _data[1000] = "hello, world!\n";
 		if(_data != nullptr){
 			data = new unsigned char[pktNum + 1];
@@ -127,7 +127,10 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    memset(recvPktStat, 0, sizeof(recvPktStat));
+    // memset(recvPktStat, 0, sizeof(recvPktStat));
+    for(int i = 0; i < pktNum; i++){
+        recvPktStat[i] = '0';
+    }
     // IONBF: not use buffer, each I/O fast write and read  
 	setvbuf(stdin, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
@@ -245,11 +248,11 @@ int main(int argc, char *argv[]) {
                     bzero(&buffer, sizeof(buffer));
                     // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                     cout << "====have correct cksum, open file====\n";
-                    if(recvPktStat[rcvPkt.seq] == 1){/*have receive*/
+                    if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
                         continue;
                     }
                     // lastAckSeq++;
-                    recvPktStat[rcvPkt.seq] = 1;/*means has receive #seq pkt*/
+                    recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
 
                     // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
                     // string filePath = fileDir + "/" + file;
