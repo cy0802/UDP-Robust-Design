@@ -181,12 +181,20 @@ int main(int argc, char *argv[]){
         // rcv bitset: haven't test
         int n;
         char rcvbuffer[23000];
-        do {
-            bzero(&rcvbuffer, sizeof(rcvbuffer));
-        } while((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) >= 0);
-        bitset<23000> bset(rcvbuffer);
+		char bset[23000];
+		bzero(&rcvbuffer, sizeof(rcvbuffer));
+		while(1){
+			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
+				cout << "timeout" << "\n";
+				break;
+			} else {
+				bzero(&bset, sizeof(bset));
+				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
+			}
+		}
+		cout << "rcv from server: " << bset << endl;
         for(int i = 0; i < sendQueue.size(); i++){
-			if(!bset[i] && sendQueue[i].data == nullptr){
+			if(bset[i] == '0' && sendQueue[i].data == nullptr){
 				// if the packet is marked not received but the data is deleted, read it again
 				char* filepath;
 				sprintf(filepath, "%s/%s", fileDir, sendQueue[i].filename);
@@ -200,7 +208,7 @@ int main(int argc, char *argv[]){
 				sendQueue[i].data = new unsigned char[sendQueue[i].len];
 				memcpy(sendQueue[i].data, buf, sendQueue[i].len);
 			}
-            if(bset[i] && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
+            if(bset[i] == '1' && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
         }
     }
     close(sockfd);
