@@ -22,6 +22,7 @@ const int port = 47777;
 const int pktNum = 23000;
 char buffer[MAXLINE+100];
 char recvPktStat[pktNum];
+// const int ackFile = 0;
 // const char *hello = "Hello from server"; 
 struct sockaddr_in servaddr, clientaddr; 
 class Packet{
@@ -37,10 +38,11 @@ public:
     Packet(char *_data){
         // char _data[1000] = "hello, world!\n";
 		if(_data != nullptr){
-			data = new unsigned char[strlen(_data) + 1];
+            size_t _len = sizeof(_data);
+			data = new unsigned char[_len + 1];
 			// memmove(data, _data, pktNum);
-            memcpy(data, _data, sizeof(_data));
-			data[sizeof(_data)] = '\0';
+            memcpy(data, _data, _len);
+			data[_len] = '\0';
 		} else {
 			data = nullptr;
 		}
@@ -166,6 +168,7 @@ int main(int argc, char *argv[]) {
     timeval start, end;
     gettimeofday(&start, 0);
     int startSec = start.tv_sec;
+    // ackFile = 0;
     while(1){
         
         clilen = sizeof(clientaddr);
@@ -261,7 +264,7 @@ int main(int argc, char *argv[]) {
                 // uint16_t servCksum = rcvPkt.calculateCksum();
                 cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
                 if(servCksum == rcvPkt.cksum){
-                    
+                    // ackFile++;
                     bzero(&buffer, sizeof(buffer));
                     // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                     cout << "====have correct cksum, open file====\n";
