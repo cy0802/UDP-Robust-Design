@@ -38,11 +38,11 @@ public:
     Packet(char *_data){
         // char _data[1000] = "hello, world!\n";
 		if(_data != nullptr){
-            size_t _len = sizeof(_data);
-			data = new unsigned char[_len + 1];
+            // size_t _len = sizeof(_data);
+			data = new unsigned char[pktNum + 1];
 			// memmove(data, _data, pktNum);
-            memcpy(data, _data, _len);
-			data[_len] = '\0';
+            memcpy(data, _data, pktNum);
+			data[pktNum] = '\0';
 		} else {
 			data = nullptr;
 		}
@@ -179,6 +179,10 @@ int main(int argc, char *argv[]) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // Timeout occurred
                 std::cerr << "======Receive timeout!======\n" << std::endl;
+                Packet servStat(recvPktStat);
+                // cout << "recvPktStat: " << recvPktStat << endl;
+                servStat.send(sockfd);
+                servStat.print();
                 usleep(10000);
             } else {
                 // Other error occurred
@@ -297,95 +301,17 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            // strcpy(reinterpret_cast<char*>(rcvPkt.data), line.c_str());
-            // memcpy(rcvPkt.data, line.c_str(), rcvPkt.len);
-            // string payload(reinterpret_cast<const char*>(rcvPkt.data));
-            // string payload="";
-            // if(rcvPkt.data) payload = (char*)rcvPkt.data;
-            // cout << "rcv seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
-            //     << rcvPkt.cksum << "len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
-            // // handshake
-            // if(rcvPkt.data == NULL && !handshake){
-            //     cout << "in handshake\n";
-            //     lastAckSeq++;
-            //     Packet temp(seq, lastAckSeq);
-            //     temp.send(sockfd);
-            //     seq++;
-            //     handshake = true;
-            //     continue;
-            // }
-            // else if(rcvPkt.data == NULL && handshake){/*if has handshaked, but receive NULL data*/
-            //     // cout << "data is null\n";
-            //     bzero(&buffer, sizeof(buffer));
-            //     // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-            //     Packet temp(seq, lastAckSeq);
-            //     temp.send(sockfd);
-            //     seq++;
-            //     continue;
-            // }
-        
-            // // cout << "rcv seq: " << rcvPkt.seq << "\n";
-            // // cout << "server seq: "<< rcvPkt.seq << ", ack: " << rcvPkt.ack << ", fin: " << rcvPkt.fin << ", cksum: " 
-            // //   << rcvPkt.cksum << ", len: "<< rcvPkt.len<<  ", filename: " << rcvPkt.filename << ", fileEnd: " << rcvPkt.fileEnd << ", data: " << rcvPkt.data << "\n";
-            // // out of order
-            // if(rcvPkt.seq != (lastAckSeq+1) && handshake){
-            //     cout << "====data out of order====\n";
-            //     cout << "expect seq: " << (lastAckSeq+1) << endl;
-            //     bzero(&buffer, sizeof(buffer));
-            //     // sprintf(buffer, "pkt lost :(\n", rcvPkt.seq);
-            //     Packet temp(seq, lastAckSeq);
-            //     temp.send(sockfd);
-            //     seq++;
-            // }
-            // else if(rcvPkt.seq == (lastAckSeq+1) && handshake){/*order right, calculate the cksum*/
-            //     // testing
-            //     uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
-            //     // uint16_t servCksum = rcvPkt.cksum;
-            //     // uint16_t servCksum = rcvPkt.calculateCksum();
-            //     // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
-            //     if(servCksum == rcvPkt.cksum){
-            //         bzero(&buffer, sizeof(buffer));
-            //         // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
-            //         cout << "====have correct cksum, open file====\n";
-            //         lastAckSeq++;
-            //         Packet temp(seq, lastAckSeq);
-            //         temp.send(sockfd);
-            //         seq++;
-            //         string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
-            //         string filePath = fileDir + "/" + file;
-            //         cout << "filePath: " << filePath << endl;
-            //         fileOut.open(filePath, std::ios_base::app);
-            //         if(fileOut.fail()) errquit("server fstream open file");
-            //         fileOut << rcvPkt.data;
-            //         fileOut.close();
-            //     }
-            //     else{/*cksum is not right*/
-            //         cout << "====cksum error!====\n";
-            //         bzero(&buffer, sizeof(buffer));
-            //         // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-            //         Packet temp(seq, lastAckSeq);
-            //         temp.send(sockfd);
-            //         seq++;
-            //     }
-            // }
-            // }
-            // // bzero(&buffer, sizeof(buffer));
-            // // sprintf(buffer, "receive data!\n");
-            // response = "receive data! data: " + payload + '\n';
-            // sendto(sockfd, response.c_str(), response.length(), 0, (struct sockaddr*) &clientaddr, sizeof(clientaddr));
         }
         gettimeofday(&end, 0);
         int elapsed_time = end.tv_sec - startSec;
-        if(elapsed_time > 5){
-            cout << "===========send server stat===============\n";
-            startSec = end.tv_sec;
-            Packet servStat(recvPktStat);
-            // cout << "recvPktStat: " << recvPktStat << endl;
-            servStat.send(sockfd);
-            servStat.print();
-            // print_bitset();
-            // servStat.deleteData();
-        }
+        // if(elapsed_time > 5){
+        //     cout << "===========send server stat===============\n";
+        //     // startSec = end.tv_sec;
+        //     // Packet servStat(recvPktStat);
+        //     // // cout << "recvPktStat: " << recvPktStat << endl;
+        //     // servStat.send(sockfd);
+        //     // servStat.print();
+        // }
     }
     return 0;
 }
