@@ -209,7 +209,7 @@ int main(int argc, char *argv[]) {
             if(rcvPkt.data == NULL){/*data has no stuff*/
                 continue;
             }else{/*data have stuff*/
-                cout << "======seq#" << rcvPkt.seq << "len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
+                // cout << "======seq#" << rcvPkt.seq << "len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
                 uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
                 // uint16_t servCksum = rcvPkt.cksum;
                 // uint16_t servCksum = rcvPkt.calculateCksum();

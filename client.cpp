@@ -176,7 +176,7 @@ int main(int argc, char *argv[]){
             if(it->data == nullptr) continue;
             allsent = false;
             it->send(sockfd);
-            it->print();
+            // it->print();
             usleep(75); // sleep for 0.75ms
         }
         if(allsent) break;
@@ -185,14 +185,15 @@ int main(int argc, char *argv[]){
         int n;
         char rcvbuffer[23000];
 		char bset[23000];
-		bzero(&rcvbuffer, sizeof(rcvbuffer));
 		while(1){
+			bzero(&rcvbuffer, sizeof(rcvbuffer));
 			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
 				cout << "timeout" << "\n";
 				break;
 			} else {
 				bzero(&bset, sizeof(bset));
 				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
+				cout << "rcv from server: " << rcvbuffer << endl;
 			}
 		}
 		cout << "rcv from server: " << bset << endl;
