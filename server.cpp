@@ -228,11 +228,12 @@ int main(int argc, char *argv[]) {
                     // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
                     // string filePath = fileDir + "/" + file;
                     string filePath = fileDir + "/" + rcvPkt.filename;
-                    rcvPkt.offset;
+
                     cout << "filePath: " << filePath << endl;
                     fileOut.open(filePath, std::ios::binary | std::ios_base::app);
                     if(fileOut.fail()) errquit("server fstream open file");
-                     // Write rcvPkt.data to the file
+                    fileOut.seekp(rcvPkt.offset, std::ios::beg);
+                    // Write rcvPkt.data to the file
                     fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
 
                     // Close the file
