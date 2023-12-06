@@ -74,16 +74,13 @@ public:
 		// cout << "\t\tdestructor called\tseq: " << seq << "\n";
 		if(data != nullptr) delete[] data;
 	}
-    // if(sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *) &cliaddr, sizeof(cliaddr)) == -1){
-    //             perror("sending");
-    //             exit(EXIT_FAILURE);
-    //         }
+
 	void send(int sockfd){
 		bzero(&buffer, sizeof(buffer));
 		sprintf(buffer, "%s\n", data);
 		int n;
 		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0){
-            cout << "======can not send to client, sleep a while...======\n";
+            // cout << "======can not send to client, sleep a while...======\n";
             usleep(10000);
             // errquit("server write");
         }
@@ -102,15 +99,14 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
     }
     return cksum;
 }
-// uint16_t servCalculateCksum(unsigned char* data, int len){
-//     // unsigned short *ptr = (unsigned short*)data;
-//     uint16_t cksum = data[0];
-//     // int round = len/2;
-//     for(int i = 1; i < len; i++){
-//         cksum = cksum ^ data[i];
-//     }
-//     return cksum;
-// }
+
+void print_bitset(){
+    for(int i = 0; i < pktNum; i++){
+        cout << recvPktStat[i] << "\t";
+    }
+    cout << "\n";
+}
+
 int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
@@ -123,21 +119,21 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    memset(recvPktStat, 0, sizeof(recvPktStat));
+    memset(recvPktStat, '0', sizeof(recvPktStat));
     // for(int i = 0; i < pktNum; i++){
         // recvPktStat[i] = '0';
     // }
     // IONBF: not use buffer, each I/O fast write and read  
-	setvbuf(stdin, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
-	setvbuf(stdout, NULL, _IONBF, 0); 
+	// setvbuf(stdin, NULL, _IONBF, 0);
+	// setvbuf(stderr, NULL, _IONBF, 0);
+	// setvbuf(stdout, NULL, _IONBF, 0); 
     
     // struct timeval timeout = {2, 0}; //set timeout for 2 seconds
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-    struct timeval timeout = {0, 5000}; //set timeout for 5 ms 
+    struct timeval timeout = {0, 200000}; //set timeout for 200 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
     memset(&servaddr, 0, sizeof(servaddr)); 
@@ -164,7 +160,6 @@ int main(int argc, char *argv[]) {
     int startSec = start.tv_sec;
     // ackFile = 0;
     while(1){
-        
         clilen = sizeof(clientaddr);
         int n;
         bzero(&buffer, sizeof(buffer));
@@ -172,11 +167,12 @@ int main(int argc, char *argv[]) {
         if (bytesRead == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // Timeout occurred
-                std::cerr << "======Receive timeout!======\n" << std::endl;
+                // std::cerr << "======Receive timeout!======\n" << std::endl;
                 Packet servStat(recvPktStat);
                 // cout << "recvPktStat: " << recvPktStat << endl;
-                servStat.send(sockfd);
-                servStat.print();
+                int cnt = 3;
+                while(cnt--) servStat.send(sockfd);
+                // servStat.print();
                 servStat.deleteData();
                 usleep(10000);
             } else {
@@ -213,7 +209,7 @@ int main(int argc, char *argv[]) {
                 uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
                 // uint16_t servCksum = rcvPkt.cksum;
                 // uint16_t servCksum = rcvPkt.calculateCksum();
-                cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
+                // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
                 if(servCksum == rcvPkt.cksum){
                     // ackFile++;
                     bzero(&buffer, sizeof(buffer));
@@ -228,8 +224,13 @@ int main(int argc, char *argv[]) {
                     // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
                     // string filePath = fileDir + "/" + file;
                     string filePath = fileDir + "/" + rcvPkt.filename;
+<<<<<<< HEAD
 
                     cout << "filePath: " << filePath << endl;
+=======
+                    rcvPkt.offset;
+                    // cout << "filePath: " << filePath << endl;
+>>>>>>> 9d7204c140405e464d4932d6454fddf6f506224c
                     fileOut.open(filePath, std::ios::binary | std::ios_base::app);
                     if(fileOut.fail()) errquit("server fstream open file");
                     fileOut.seekp(rcvPkt.offset, std::ios::beg);
@@ -240,7 +241,7 @@ int main(int argc, char *argv[]) {
                     fileOut.close();
                 }
                 else{/*cksum is not right*/
-                    cout << "====cksum error!====\n";
+                    cout << "====cksum error!\tserver: " << servCksum << ", client: " << rcvPkt.cksum << "====\n";
                     // bzero(&buffer, sizeof(buffer));
                     // // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
                     // Packet temp(seq, lastAckSeq);

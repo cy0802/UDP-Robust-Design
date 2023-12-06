@@ -16,6 +16,7 @@
 using namespace std;
 
 char buffer[MTU + 100];
+char* fileDir;
 
 class Packet{
 public:
@@ -41,7 +42,7 @@ public:
 		}
 	}
 
-	Packet(int _seq, int _offset, int _len, char* _filename, bool _fileEnd, char* _data){
+	Packet(int _seq, int _offset, int _len, char* _filename, bool _fileEnd){
 		// cout << "\t\tconstructor with multiple parameters called\tseq: " << seq << "\n";
 		seq = _seq; len = _len;
 		fileEnd = _fileEnd; offset = _offset;
@@ -50,14 +51,16 @@ public:
 		} else {
 			filename = "";
 		}
-		if(_data != nullptr){
-			data = new unsigned char[_len + 1];
-			memmove(data, _data, _len);
-			data[_len] = '\0';
-			// len ++;
-		} else {
-			data = nullptr;
-		}
+		data = nullptr;
+		cksum = 0;
+		// if(_data != nullptr){
+		// 	data = new unsigned char[_len + 1];
+		// 	memmove(data, _data, _len);
+		// 	data[_len] = '\0';
+		// 	// len ++;
+		// } else {
+		// 	data = nullptr;
+		// }
 	};
 
 	// move constructor
@@ -121,16 +124,30 @@ public:
 		bzero(&buffer, sizeof(buffer));
 		// sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 		// 	seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
+		fstream file;
+		char filepath[30];
+        sprintf(filepath, "%s/%s", fileDir, filename.c_str());
+		file.open(filepath, ios::in);
+		if(file.fail()) errquit("client open file");
+		file.seekg(offset);
+		data = new unsigned char[len + 1];
+		file.read(reinterpret_cast<char*>(data), len);
+		data[len] = '\0';
+		file.close();
+		if(cksum == 0) calculateCksum();
+		// cout << data << "\n";
 		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n%s",
 			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
+		if(data != nullptr) delete[] data;
+		data = nullptr;
 	}
-    void isACKed(){
-        delete [] data;
-        data = nullptr;
-    }
+    // void isACKed(){
+    //     delete [] data;
+    //     data = nullptr;
+    // }
 };
 
 void readFile();
@@ -138,7 +155,7 @@ vector<Packet> sendQueue;
 static int sockfd = -1;
 static struct sockaddr_in sin;
 int totalFile;
-char* fileDir;
+
 
 
 int main(int argc, char *argv[]){
@@ -160,7 +177,7 @@ int main(int argc, char *argv[]){
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("client socket");}
 	else cout << "successfully create socket\n";
 
-	struct timeval timeout = {0, 5000}; //set timeout for 5 ms 
+	struct timeval timeout = {0, 300000}; //set timeout for 300 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
 	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("client connect") } 
@@ -168,52 +185,56 @@ int main(int argc, char *argv[]){
 
     readFile();
 
-    while(1){
-        
+	char bset[23000];
+	memset(bset, '0', sizeof(bset));
+    while(1){    
         // send
         bool allsent = true;
+		// cout << "============================send===============================\n";
         for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
-            if(it->data == nullptr) continue;
+            if(bset[it->seq] == '1') continue;
             allsent = false;
             it->send(sockfd);
             // it->print();
-            usleep(75); // sleep for 0.75ms
+            usleep(100); // sleep for 1ms
         }
         if(allsent) break;
 
+		// cout << "============================rcv================================\n";
         // rcv bitset: haven't test
         int n;
         char rcvbuffer[23000];
-		char bset[23000];
+		
 		while(1){
 			bzero(&rcvbuffer, sizeof(rcvbuffer));
 			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
-				cout << "timeout" << "\n";
+				// cout << "timeout" << "\n";
 				break;
 			} else {
+				// cout << "." << flush;
 				bzero(&bset, sizeof(bset));
 				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
-				cout << "rcv from server: " << rcvbuffer << endl;
+				// cout << "rcv from server: " << rcvbuffer << endl;
 			}
 		}
-		cout << "rcv from server: " << bset << endl;
-        for(int i = 0; i < sendQueue.size(); i++){
-			if(bset[i] == '0' && sendQueue[i].data == nullptr){
-				// if the packet is marked not received but the data is deleted, read it again
-				char* filepath;
-				sprintf(filepath, "%s/%s", fileDir, sendQueue[i].filename);
-				fstream file;
-				file.open(filepath, ios::in);
-				if(file.fail()) errquit("client fstream open file");
+		// cout << "\n============================process===========================\n";
+		// cout << "rcv from server: " << bset << endl;
+        // for(int i = 0; i < sendQueue.size(); i++){
+		// 	if(bset[i] == '0' && sendQueue[i].data == nullptr){
+		// 		// if the packet is marked not received but the data is deleted, read it again
+		// 		char* filepath;
+		// 		sprintf(filepath, "%s/%s", fileDir, sendQueue[i].filename);
+		// 		fstream file;
+		// 		file.open(filepath, ios::in);
+		// 		if(file.fail()) errquit("client fstream open file");
 				
-				file.seekg(sendQueue[i].offset);
-				char buf[MTU]; bzero(&buf, sizeof(buf));
-				file.read(buf, sendQueue[i].len);
-				sendQueue[i].data = new unsigned char[sendQueue[i].len];
-				memcpy(sendQueue[i].data, buf, sendQueue[i].len);
-			}
-            if(bset[i] == '1' && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
-        }
+		// 		file.seekg(sendQueue[i].offset);
+		// 		// char buf[MTU]; bzero(&buf, sizeof(buf));
+		// 		sendQueue[i].data = new unsigned char[sendQueue[i].len];
+		// 		file.read(reinterpret_cast<char*>(sendQueue[i].data), sendQueue[i].len);
+		// 	}
+        //     // if(bset[i] == '1' && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
+        // }
     }
     close(sockfd);
     return 0;
@@ -223,9 +244,9 @@ void readFile(){
     int seq = 0;
     char buf[MTU];
     for(int curFile = 0; curFile < totalFile; curFile++){
-        char filepath[30];
         char filename[10];
         sprintf(filename, "%06d", curFile);
+		char filepath[30];
         sprintf(filepath, "%s/%06d", fileDir, curFile);
         fstream file;
         file.open(filepath, ios::in);
@@ -234,13 +255,13 @@ void readFile(){
         bzero(&buf, sizeof(buf));
         int offset = file.tellg();
         while(file.read(buf, sizeof(buf))){
-            sendQueue.push_back(Packet(seq, offset, sizeof(buf), filename, 0, buf));
-            (sendQueue.end() - 1)->calculateCksum();
+            sendQueue.push_back(Packet(seq, offset, sizeof(buf), filename, 0));
+            // (sendQueue.end() - 1)->calculateCksum();
             offset = file.tellg();
             seq++;
         }
-        sendQueue.push_back(Packet(seq, offset, file.gcount(), filename, 1, buf));
-        (sendQueue.end() - 1)->calculateCksum();
+        sendQueue.push_back(Packet(seq, offset, file.gcount(), filename, 1));
+        // (sendQueue.end() - 1)->calculateCksum();
         seq++;
     }
 }
