@@ -54,6 +54,7 @@ public:
 			data = new unsigned char[_len + 1];
 			memmove(data, _data, _len);
 			data[_len] = '\0';
+			// len ++;
 		} else {
 			data = nullptr;
 		}
@@ -113,6 +114,8 @@ public:
 	}
     void print(){
         cout << "seq: " << seq << "\n";
+		// cout << "seq: " << seq << "len: "<< len<<"\n";
+		// cout << "====data====\n" << data << "\n";
     }
 	void send(int sockfd){
 		bzero(&buffer, sizeof(buffer));

@@ -1,69 +1,37 @@
-/*
- * Lab problem set for INP course
- * by Chun-Ying Huang <chuang@cs.nctu.edu.tw>
- * License: GPLv2
- */
 #include <iostream>
-#include <sstream>
 #include <fstream>
 #include <string>
 #include <vector>
-#include <sstream>
+#include <bitset>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <signal.h>
-#include <time.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#define MAXLINE 1400
-#define WINDOW_SIZE 200
-#define QUEUE_CAPACITY 20
+#define MTU 1400
 #define errquit(m) { perror(m); exit(-1); }
 using namespace std;
 
-char sendBuffer[MAXLINE];
-char rcvBuffer[MAXLINE];
-int curFile = 0;
-int seq = 1;
-int servSeq = -1;
-int lastACK = -1;
+char buffer[MTU + 100];
 
 class Packet{
 public:
 	int seq;
-	int ack;
-	bool fin;
 	uint16_t cksum;
+    int offset;
 	int len; // only length of data
 	string filename;
 	bool fileEnd;
 	unsigned char* data;
 
-	bool isAcked;
-
-	Packet(char* raw){
-		// cout << "\t\tconstructor with string parameters\tseq: " << seq << "\n";
-		string _raw = raw;
-		// cout << raw << endl;
-		stringstream ss; ss.clear();
-		ss << raw;
-		ss >> seq >> ack >> fin >> cksum;
-		len = 0;
-		fileEnd = 0;
-		filename = "";
-		data = nullptr;
-		// cout << "*";
-	}
-
 	// copy constructor
 	Packet(const Packet &pkt){
 		// cout << "\t\tcopy constructor called\nseq: " << pkt.seq << "\n";
-		this->seq = pkt.seq; this->ack = pkt.ack; this->cksum = pkt.cksum; this->len = pkt.len;
-		this->filename = pkt.filename; this->fileEnd = pkt.fileEnd; this->fin = pkt.fin;
+		this->seq = pkt.seq; this->cksum = pkt.cksum; this->len = pkt.len;
+		this->filename = pkt.filename; this->fileEnd = pkt.fileEnd; this->offset = pkt.offset;
 		if(pkt.data != nullptr){
 			this->data = new unsigned char[pkt.len + 1];
 			memmove(this->data, pkt.data, pkt.len);
@@ -73,10 +41,10 @@ public:
 		}
 	}
 
-	Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data){
+	Packet(int _seq, int _offset, int _len, char* _filename, bool _fileEnd, char* _data){
 		// cout << "\t\tconstructor with multiple parameters called\tseq: " << seq << "\n";
-		seq = _seq; ack = 0; fin = _fin; len = _len;
-		fileEnd = _fileEnd;
+		seq = _seq; len = _len;
+		fileEnd = _fileEnd; offset = _offset;
 		if(_filename != nullptr){
 			filename = _filename;
 		} else {
@@ -86,18 +54,18 @@ public:
 			data = new unsigned char[_len + 1];
 			memmove(data, _data, _len);
 			data[_len] = '\0';
+			len ++;
 		} else {
 			data = nullptr;
 		}
-		isAcked = false;
 	};
 
 	// move constructor
-	Packet(Packet&& pkt){ // : data(nullptr)
-		// cout << "\t\tmove constructor called\tseq: " << pkt.seq << "\n";
-		data = pkt.data;
-		pkt.data = nullptr;
-	}
+	// Packet(Packet&& pkt){ // : data(nullptr)
+	// 	// cout << "\t\tmove constructor called\tseq: " << pkt.seq << "\n";
+	// 	data = pkt.data;
+	// 	pkt.data = nullptr;
+	// }
 
 	// move assignment operator
 	Packet& operator=(Packet&& other){
@@ -106,12 +74,13 @@ public:
 			// delete [] data;
 			data = other.data;
 			other.data = nullptr;
-			len = other.len; seq = other.seq; ack = other.ack; fin = other.fin;
+			len = other.len; seq = other.seq; offset = other.offset;
 			fileEnd = other.fileEnd; filename = other.filename; cksum = other.cksum;
 		}
 		return *this;
 	}
 
+    // overload assignment
 	Packet &operator=(const Packet &other){
 		// cout << "\t\toverloaded assignment called\tassign seq " << other.seq << " to seq " << seq << "\n";
 		if(this != &other){
@@ -129,60 +98,58 @@ public:
 	}
 
 	void calculateCksum(){
-		unsigned short *ptr = (unsigned short*)data;
-		cksum = ptr[0];
-		int round = len / 2;
-		for(int i = 1; i < round; i++){
-			cksum = cksum ^ ptr[i];
+		// unsigned short *ptr = (unsigned short*)data;
+		cksum = data[0];
+		// int round = len / 2;
+		for(int i = 1; i < len; i++){
+			cksum = cksum ^ data[i];
 		}
 	}
-	void print(){
-		// printf("====================================================\n");
-		// printf("seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nContent Length: %d\nfileEnd: %d\n%s\n",
-		// 	seq, ack, fin, cksum, filename.c_str(), len, fileEnd, data);
-		// printf("====================================================\n");
-		cout << " seq: " << seq << "\tack: " << ack <<"\n";
+	void printDetail(){
+		printf("====================================================\n");
+		printf("seq: %d\ncksum: %hu\noffset: %d\nlen: %d\nfilename: %s\nfileEnd: %d\n%s\n",
+			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
+		printf("====================================================\n");
+		// cout << " seq: " << seq << "\n";
 	}
+    void print(){
+        cout << "seq: " << seq << "\n";
+		// cout << "seq: " << seq << "len: "<< len<<"\n";
+		cout << "====data====\n" << data << "\n";
+    }
 	void send(int sockfd){
-		bzero(&sendBuffer, sizeof(sendBuffer));
-		// cout << "send data: " << data << endl;
+		bzero(&buffer, sizeof(buffer));
 		// sprintf(sendBuffer, "seq: %d\nACK: %d\nfin: %d\ncksum: %hu\nfilename: %s\nfileEnd: %d\n%s",
 		// 	seq, ack, fin, cksum, filename.c_str(), fileEnd, data);
-		sprintf(sendBuffer, "%d\n%d\n%d\n%hu\n%d\n%s\n%d\n%s",
-			seq, ack, fin, cksum, len, filename.c_str(), fileEnd, data);
+		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n%s",
+			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
 		int n;
-		if((n = write(sockfd, sendBuffer, sizeof(sendBuffer))) < 0) errquit("client write");
+		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
 	}
+    void isACKed(){
+        delete [] data;
+        data = nullptr;
+    }
 };
 
+void readFile();
+vector<Packet> sendQueue;
 static int sockfd = -1;
 static struct sockaddr_in sin;
-vector<Packet> waitQueue;
-int cnt = WINDOW_SIZE;
-int lastSentSeq = -1;
 int totalFile;
 char* fileDir;
 
-void send1File(int sockfd);
-Packet rcv(int sockfd);
 
-int main(int argc, char *argv[]) {
-	
-	if(argc < 3) {
-		return -fprintf(stderr, "usage: %s ... <dir> <totalFile> <port> <ip>\n", argv[0]);
+int main(int argc, char *argv[]){
+    if(argc < 3) {
+		return -fprintf(stderr, "usage: %s ... <port> <ip>\n", argv[0]);
 	}
 
 	fileDir = argv[1];
 	totalFile = atoi(argv[2]);
 
-	srand(time(0) ^ getpid());
-
-	setvbuf(stdin, nullptr, _IONBF, 0);
-	setvbuf(stderr, nullptr, _IONBF, 0);
-	setvbuf(stdout, nullptr, _IONBF, 0);
-
-	memset(&sin, 0, sizeof(sin));
+    memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(strtol(argv[argc-2], nullptr, 0));
 	if(inet_pton(AF_INET, argv[argc-1], &sin.sin_addr) != 1) {
@@ -193,151 +160,86 @@ int main(int argc, char *argv[]) {
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("client socket");}
 	else cout << "successfully create socket\n";
 
-	struct timeval timeout = {1, 0}; //set timeout for 1 seconds
+	struct timeval timeout = {0, 5000}; //set timeout for 5 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
 	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("client connect") } 
 	else cout << "successfully connect to server\n";
 
-	// hand shaking
-	// Packet(int _seq, bool _fin, int _len, char* _filename, bool _fileEnd, char* _data)
-	Packet handshaking = Packet(0, 1, 0, nullptr, 0, nullptr);
-	// handshaking.print();
-	while(1){
-		handshaking.send(sockfd);
-		// bzero(&handshaking, sizeof(handshaking));
-		
-		bzero(&rcvBuffer, sizeof(rcvBuffer));
-		int n;
-		if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) >= 0){
-			// cout << "handshaking success\n";
-			Packet tmp = Packet(rcvBuffer);
-			// cout << "rcv";
-			// tmp.print();
-			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
-			break;
-		} else {
-			// cout << "timeout resend\n";
-		}
-	}
-	int n;
-	// start transfer data
-	while(1){
-		// cout << "================================\n";
-		// cout << "waitqueue.size: " << waitQueue.size() << "\n";
-		// for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
-		// 	cout << it->seq << " ";
-		// cout << "\nseq: " << seq << " / lastACK: " << lastACK << "\n";
+    readFile();
 
-		// cout << "send1File() ==========================================\n";
-		send1File(sockfd);
-		// cout << "=======================================================\n";
+    while(1){
+        
+        // send
+        bool allsent = true;
+        for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
+            if(it->data == nullptr) continue;
+            allsent = false;
+            it->send(sockfd);
+            it->print();
+            usleep(75); // sleep for 0.75ms
+        }
+        if(allsent) break;
 
-		// cout << "waitqueue.size: " << waitQueue.size() << "\n";
-		// for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
-		// 	cout << it->seq << " ";
-		
-		cout << "\nrcv ACK ===============================================\n";
-		// rcv ACK
+        // rcv bitset: haven't test
+        int n;
+        char rcvbuffer[23000];
+		char bset[23000];
+		bzero(&rcvbuffer, sizeof(rcvbuffer));
 		while(1){
-			bzero(&rcvBuffer, sizeof(rcvBuffer));
-			if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0){
-				// cout << "timeout\n";
+			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
+				cout << "timeout" << "\n";
 				break;
+			} else {
+				bzero(&bset, sizeof(bset));
+				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
 			}
-			Packet tmp(rcvBuffer);
-			cout << "rcv";
-			tmp.print();
-			if(tmp.ack > lastACK && tmp.ack < seq) lastACK = tmp.ack;
 		}
-		// cout << "========================================================\n";
-
-		// cout << "remove ACKed pkt from waitQueue ========================\n";
-		while(1){
-			if(waitQueue.empty()) break;
-			auto it = waitQueue.begin();
-			// cout << it->seq << "\n";
-			if(it->seq <= lastACK) {
-				// delete [] it->data;
-				waitQueue.erase(it);
+		cout << "rcv from server: " << bset << endl;
+        for(int i = 0; i < sendQueue.size(); i++){
+			if(bset[i] == '0' && sendQueue[i].data == nullptr){
+				// if the packet is marked not received but the data is deleted, read it again
+				char* filepath;
+				sprintf(filepath, "%s/%s", fileDir, sendQueue[i].filename);
+				fstream file;
+				file.open(filepath, ios::in);
+				if(file.fail()) errquit("client fstream open file");
+				
+				file.seekg(sendQueue[i].offset);
+				char buf[MTU]; bzero(&buf, sizeof(buf));
+				file.read(buf, sendQueue[i].len);
+				sendQueue[i].data = new unsigned char[sendQueue[i].len];
+				memcpy(sendQueue[i].data, buf, sendQueue[i].len);
 			}
-			else break;
-		}
-		if(curFile == totalFile && waitQueue.empty()) break;
-		// cout << "curFile: " << curFile << "\nwaitQueue.size:  " << waitQueue.size() << "\n";
-		// cout << "lastACK: " << lastACK << "\n";
-		// cout << "waitqueue.size: " << waitQueue.size() << "\n";
-		// for (auto it = waitQueue.begin(); it < waitQueue.end(); it++)
-		// 	cout << it->seq << " ";
-		// cout << "======================================================\n";
-	}
-
-	close(sockfd);
+            if(bset[i] == '1' && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
+        }
+    }
+    close(sockfd);
+    return 0;
 }
 
-Packet rcv(int sockfd) {
-	int n;
-	bzero(&rcvBuffer, sizeof(rcvBuffer));
-	if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0) errquit("client read");
-	return Packet(rcvBuffer);
+void readFile(){
+    int seq = 0;
+    char buf[MTU];
+    for(int curFile = 0; curFile < totalFile; curFile++){
+        char filepath[30];
+        char filename[10];
+        sprintf(filename, "%06d", curFile);
+        sprintf(filepath, "%s/%06d", fileDir, curFile);
+        fstream file;
+        file.open(filepath, ios::in);
+        if(file.fail()) errquit("client fstream open file");
+
+        bzero(&buf, sizeof(buf));
+        int offset = file.tellg();
+        while(file.read(buf, sizeof(buf))){
+            sendQueue.push_back(Packet(seq, offset, sizeof(buf), filename, 0, buf));
+            (sendQueue.end() - 1)->calculateCksum();
+            offset = file.tellg();
+            seq++;
+        }
+        sendQueue.push_back(Packet(seq, offset, file.gcount(), filename, 1, buf));
+        (sendQueue.end() - 1)->calculateCksum();
+        seq++;
+    }
 }
-
-void send1File(int sockfd){
-	// send pkt in waitQueue
-	for(auto it = waitQueue.begin(); it < waitQueue.end(); it++){
-		// it->print();
-		// cout << it->data << "\n";
-		it->send(sockfd);
-	}
-	
-	if(waitQueue.size() >= QUEUE_CAPACITY) return;
-	
-	// send 10 files a time
-	char buf[MAXLINE - 50];
-	int cnt = 1, n;
-	while(cnt-- && curFile < totalFile){
-		char filepath[30];
-		sprintf(filepath, "%s/%06d", fileDir, curFile);
-		ifstream file;
-		file.open(filepath, ios::in);
-		if(file.fail()) errquit("client fstream open file");
-
-		char filename[10];
-		sprintf(filename, "%06d", curFile);
-		
-		bzero(&buf, sizeof(buf));
-		while(file.read(buf, sizeof(buf))){
-			// Packet(int _seq, bool _fin, int _len, string _filename, bool _fileEnd, char* _data)
-			
-			Packet tmp(seq, 0, sizeof(buf), filename, 0, buf);
-			tmp.calculateCksum();
-			cout <<"========send=======\n";
-			tmp.print();
-			tmp.send(sockfd);
-			// cout << "*\n";
-			waitQueue.push_back(tmp);
-			// cout << "*\n";
-			// delete [] tmp.data;
-			seq++;
-			bzero(&buf, sizeof(buf));
-		}
-		Packet temp(seq, 0, file.gcount(), filename, 1, buf);
-		temp.calculateCksum();
-		cout <<"========send=======\n";
-		temp.print();
-		temp.send(sockfd);
-		waitQueue.push_back(temp);
-		// delete [] tmp.data;
-		seq++; curFile++;
-		bzero(&buf, sizeof(buf));
-	}
-}
-
-// void receiving(int sockfd){
-// 	int n;	
-// 	while(1){
-// 		bzero(&rcvBuffer, sizeof(rcvBuffer));
-// 		if((n = read(sockfd, rcvBuffer, sizeof(rcvBuffer))) < 0) errquit("write");
-
-// 	}
-// }
