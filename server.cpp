@@ -91,24 +91,24 @@ public:
     //     data = nullptr;
     // }
 };
-// uint16_t servCalculateCksum(unsigned char* data, int len){
-//     unsigned short *ptr = (unsigned short*)data;
-//     uint16_t cksum = ptr[0];
-//     int round = len/2;
-//     for(int i = 1; i < round; i++){
-//         cksum = cksum ^ ptr[i];
-//     }
-//     return cksum;
-// }
 uint16_t servCalculateCksum(unsigned char* data, int len){
-    // unsigned short *ptr = (unsigned short*)data;
-    uint16_t cksum = data[0];
-    // int round = len/2;
-    for(int i = 1; i < len; i++){
-        cksum = cksum ^ data[i];
+    unsigned short *ptr = (unsigned short*)data;
+    uint16_t cksum = ptr[0];
+    int round = len/2;
+    for(int i = 1; i < round; i++){
+        cksum = cksum ^ ptr[i];
     }
     return cksum;
 }
+// uint16_t servCalculateCksum(unsigned char* data, int len){
+//     // unsigned short *ptr = (unsigned short*)data;
+//     uint16_t cksum = data[0];
+//     // int round = len/2;
+//     for(int i = 1; i < len; i++){
+//         cksum = cksum ^ data[i];
+//     }
+//     return cksum;
+// }
 void print_bitset(){
     for(int i = 0; i < pktNum; i++){
         cout << recvPktStat[i] << "\t";
