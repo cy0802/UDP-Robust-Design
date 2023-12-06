@@ -177,7 +177,7 @@ int main(int argc, char *argv[]){
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("client socket");}
 	else cout << "successfully create socket\n";
 
-	struct timeval timeout = {0, 300000}; //set timeout for 300 ms 
+	struct timeval timeout = {0, 50000}; //set timeout for 300 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
 	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("client connect") } 
@@ -190,31 +190,33 @@ int main(int argc, char *argv[]){
     while(1){    
         // send
         bool allsent = true;
-		// cout << "============================send===============================\n";
+		cout << "============================send===============================\n";
         for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
             if(bset[it->seq] == '1') continue;
             allsent = false;
             it->send(sockfd);
             // it->print();
-            usleep(100); // sleep for 1ms
+            usleep(1000); // sleep for 1ms
         }
         if(allsent) break;
+		usleep(300000);
 
-		// cout << "============================rcv================================\n";
+		cout << "============================rcv================================\n";
         // rcv bitset: haven't test
         int n;
         char rcvbuffer[23000];
 		
 		while(1){
+			cout << "======IN WHILE LOOP======\n";
 			bzero(&rcvbuffer, sizeof(rcvbuffer));
 			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
-				// cout << "timeout" << "\n";
+				cout << "=======timeout======" << "\n";
 				break;
 			} else {
 				// cout << "." << flush;
 				bzero(&bset, sizeof(bset));
 				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
-				// cout << "rcv from server: " << rcvbuffer << endl;
+				cout << "rcv from server: " << rcvbuffer << endl;
 			}
 		}
 		// cout << "\n============================process===========================\n";

@@ -20,8 +20,9 @@ using namespace std;
 
 const int port = 47777;
 const int pktNum = 23000;
-char buffer[MAXLINE+100];
-char recvPktStat[pktNum];
+char buffer[pktNum];
+// char recvPktStat[pktNum];
+int recvPktStat[pktNum];
 // const int ackFile = 0;
 // const char *hello = "Hello from server"; 
 struct sockaddr_in servaddr, clientaddr; 
@@ -35,13 +36,21 @@ public:
 	bool fileEnd;
 	unsigned char* data;
 
-    Packet(char *_data){
+    Packet(int _data[]){
         // char _data[1000] = "hello, world!\n";
 		if(_data != nullptr){
             // size_t _len = sizeof(_data);
 			data = new unsigned char[pktNum + 1];
 			// memmove(data, _data, pktNum);
-            memcpy(data, _data, pktNum);
+            // memcpy(data, _data, pktNum);
+            for(int i = 0; i < pktNum; i++){
+                if(_data[i] == 1){
+                    data[i] = '1';
+                }
+                else{
+                    data[i] = '0';
+                }
+            }
 			data[pktNum] = '\0';
 		} else {
 			data = nullptr;
@@ -76,8 +85,20 @@ public:
 	}
 
 	void send(int sockfd){
-		bzero(&buffer, sizeof(buffer));
-		sprintf(buffer, "%s\n", data);
+        // char temp[MAXLINE];
+		// bzero(&temp, sizeof(temp));
+        // int bound = min(offset+MAXLINE, pktNum);
+        // for(int i = offset; i < bound; i++){
+        //     if(data[i] == 1){
+        //         temp[i-offset] = '1';
+        //     }
+        //     else{
+        //         temp[i-offset] = '0';
+        //     }
+        // }
+        // temp[bound] = '\0';
+		// sprintf(buffer, "%d%s", offset, temp);
+        sprintf(buffer, "%s", data);
 		int n;
 		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0){
             // cout << "======can not send to client, sleep a while...======\n";
@@ -101,8 +122,10 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
 }
 
 void print_bitset(){
+    cout << "=========serv recvPktStat===========\n";
     for(int i = 0; i < pktNum; i++){
-        cout << recvPktStat[i] << "\t";
+        if(recvPktStat[i] == 1) cout << "1";
+        else cout << "0";
     }
     cout << "\n";
 }
@@ -119,10 +142,10 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    memset(recvPktStat, '0', sizeof(recvPktStat));
-    // for(int i = 0; i < pktNum; i++){
-        // recvPktStat[i] = '0';
-    // }
+    // memset(recvPktStat, 0, sizeof(recvPktStat));
+    for(int i = 0; i < pktNum; i++){
+        recvPktStat[i] = 0;
+    }
     // IONBF: not use buffer, each I/O fast write and read  
 	// setvbuf(stdin, NULL, _IONBF, 0);
 	// setvbuf(stderr, NULL, _IONBF, 0);
@@ -133,7 +156,7 @@ int main(int argc, char *argv[]) {
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-    struct timeval timeout = {0, 200000}; //set timeout for 200 ms 
+    struct timeval timeout = {0, 300000}; //set timeout for 200 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
     memset(&servaddr, 0, sizeof(servaddr)); 
@@ -157,8 +180,7 @@ int main(int argc, char *argv[]) {
     // bool handshake = false;
     timeval start, end;
     gettimeofday(&start, 0);
-    int startSec = start.tv_sec;
-    // ackFile = 0;
+    int ackFile = 0;
     while(1){
         clilen = sizeof(clientaddr);
         int n;
@@ -167,21 +189,22 @@ int main(int argc, char *argv[]) {
         if (bytesRead == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // Timeout occurred
-                // std::cerr << "======Receive timeout!======\n" << std::endl;
+                std::cerr << "======Receive timeout!======\n" << std::endl;
                 Packet servStat(recvPktStat);
-                // cout << "recvPktStat: " << recvPktStat << endl;
+                // cout << "server recvPktStat: " << recvPktStat << endl;
+                // servStat.print();
+                // print_bitset();
                 int cnt = 3;
                 while(cnt--) servStat.send(sockfd);
-                // servStat.print();
-                servStat.deleteData();
-                usleep(10000);
-            } else {
-                // Other error occurred
-                // perror("recvfrom failed");
-                cout << "can not read file from server\n";
-                usleep(10000);
-                continue;
-            }
+                // int offset = 0;
+                // while(offset < pktNum){
+                //     cout << "send bitset\n";
+                //     servStat.send(sockfd, offset);
+                //     offset += MAXLINE;
+                // }
+                // cout << "go out while loop\n";
+                // usleep(20000); // sleep for 1ms
+            } 
         }
         else{/*pkt receive success!*/
             Packet rcvPkt;
@@ -214,23 +237,20 @@ int main(int argc, char *argv[]) {
                     // ackFile++;
                     bzero(&buffer, sizeof(buffer));
                     // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
-                    cout << "====have correct cksum, open file====\n";
-                    if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
+                    cout << "====seq#"<<rcvPkt.seq << " have correct cksum, open file====\n";
+                    if(recvPktStat[rcvPkt.seq] == 1){/*have receive*/
                         continue;
                     }
-                    // lastAckSeq++;
-                    recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
-
+                    if(rcvPkt.fileEnd){/*if true, counter++*/
+                        ackFile++;
+                    }
+                    recvPktStat[rcvPkt.seq] = 1;/*means has receive #seq pkt*/
+                    // print_bitset();
                     // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
                     // string filePath = fileDir + "/" + file;
                     string filePath = fileDir + "/" + rcvPkt.filename;
-<<<<<<< HEAD
 
-                    cout << "filePath: " << filePath << endl;
-=======
-                    rcvPkt.offset;
                     // cout << "filePath: " << filePath << endl;
->>>>>>> 9d7204c140405e464d4932d6454fddf6f506224c
                     fileOut.open(filePath, std::ios::binary | std::ios_base::app);
                     if(fileOut.fail()) errquit("server fstream open file");
                     fileOut.seekp(rcvPkt.offset, std::ios::beg);
@@ -241,7 +261,7 @@ int main(int argc, char *argv[]) {
                     fileOut.close();
                 }
                 else{/*cksum is not right*/
-                    cout << "====cksum error!\tserver: " << servCksum << ", client: " << rcvPkt.cksum << "====\n";
+                    // cout << "====cksum error!\tserver: " << servCksum << ", client: " << rcvPkt.cksum << "====\n";
                     // bzero(&buffer, sizeof(buffer));
                     // // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
                     // Packet temp(seq, lastAckSeq);
@@ -251,16 +271,9 @@ int main(int argc, char *argv[]) {
             }
 
         }
-        gettimeofday(&end, 0);
-        int elapsed_time = end.tv_sec - startSec;
-        // if(elapsed_time > 5){
-        //     cout << "===========send server stat===============\n";
-        //     // startSec = end.tv_sec;
-        //     // Packet servStat(recvPktStat);
-        //     // // cout << "recvPktStat: " << recvPktStat << endl;
-        //     // servStat.send(sockfd);
-        //     // servStat.print();
-        // }
+        if(ackFile == totalFile){
+            break;
+        }
     }
     return 0;
 }
