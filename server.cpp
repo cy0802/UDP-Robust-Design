@@ -85,10 +85,10 @@ public:
             // errquit("server write");
         }
     }
-    // void deleteData(){
-    //     delete [] data;
-    //     data = nullptr;
-    // }
+    void deleteData(){
+        delete [] data;
+        data = nullptr;
+    }
 };
 uint16_t servCalculateCksum(unsigned char* data, int len){
     unsigned short *ptr = (unsigned short*)data;
@@ -99,6 +99,7 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
     }
     return cksum;
 }
+<<<<<<< HEAD
 
 void print_bitset(){
     for(int i = 0; i < pktNum; i++){
@@ -106,6 +107,17 @@ void print_bitset(){
     }
     cout << "\n";
 }
+=======
+// uint16_t servCalculateCksum(unsigned char* data, int len){
+//     // unsigned short *ptr = (unsigned short*)data;
+//     uint16_t cksum = data[0];
+//     // int round = len/2;
+//     for(int i = 1; i < len; i++){
+//         cksum = cksum ^ data[i];
+//     }
+//     return cksum;
+// }
+>>>>>>> d45b354ed1c7609d27d146f61fa17105a4c37ce5
 int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
@@ -118,10 +130,10 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    // memset(recvPktStat, 0, sizeof(recvPktStat));
-    for(int i = 0; i < pktNum; i++){
-        recvPktStat[i] = '0';
-    }
+    memset(recvPktStat, 0, sizeof(recvPktStat));
+    // for(int i = 0; i < pktNum; i++){
+        // recvPktStat[i] = '0';
+    // }
     // IONBF: not use buffer, each I/O fast write and read  
 	// setvbuf(stdin, NULL, _IONBF, 0);
 	// setvbuf(stderr, NULL, _IONBF, 0);
@@ -172,6 +184,7 @@ int main(int argc, char *argv[]) {
                 int cnt = 3;
                 while(cnt--) servStat.send(sockfd);
                 servStat.print();
+                servStat.deleteData();
                 usleep(10000);
             } else {
                 // Other error occurred
