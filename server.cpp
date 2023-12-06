@@ -88,10 +88,10 @@ public:
             // errquit("server write");
         }
     }
-    // void deleteData(){
-    //     delete [] data;
-    //     data = nullptr;
-    // }
+    void deleteData(){
+        delete [] data;
+        data = nullptr;
+    }
 };
 uint16_t servCalculateCksum(unsigned char* data, int len){
     unsigned short *ptr = (unsigned short*)data;
@@ -111,12 +111,6 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
 //     }
 //     return cksum;
 // }
-void print_bitset(){
-    for(int i = 0; i < pktNum; i++){
-        cout << recvPktStat[i] << "\t";
-    }
-    cout << "\n";
-}
 int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
@@ -129,10 +123,10 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    // memset(recvPktStat, 0, sizeof(recvPktStat));
-    for(int i = 0; i < pktNum; i++){
-        recvPktStat[i] = '0';
-    }
+    memset(recvPktStat, 0, sizeof(recvPktStat));
+    // for(int i = 0; i < pktNum; i++){
+        // recvPktStat[i] = '0';
+    // }
     // IONBF: not use buffer, each I/O fast write and read  
 	setvbuf(stdin, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
@@ -183,6 +177,7 @@ int main(int argc, char *argv[]) {
                 // cout << "recvPktStat: " << recvPktStat << endl;
                 servStat.send(sockfd);
                 servStat.print();
+                servStat.deleteData();
                 usleep(10000);
             } else {
                 // Other error occurred
@@ -193,54 +188,6 @@ int main(int argc, char *argv[]) {
             }
         }
         else{/*pkt receive success!*/
-            // Packet rcvPkt;
-            // string response;
-            // ss.str("");
-            // ss.clear();
-            // ss << buffer;
-            // string line;
-            // getline(ss, line);
-            // rcvPkt.seq = atoi(line.c_str());
-            // // getline(ss, line);
-            // // rcvPkt.ack = atoi(line.c_str());
-            // // getline(ss, line);
-            // // rcvPkt.fin = static_cast<bool>(atoi(line.c_str()));
-            // getline(ss, line);
-            // rcvPkt.cksum = static_cast<uint16_t>(atoi(line.c_str()));
-            // getline(ss, line);
-            // rcvPkt.offset = atoi(line.c_str());
-            // getline(ss, line);
-            // rcvPkt.len = atoi(line.c_str());
-            // getline(ss, line);
-            // rcvPkt.filename = line;
-            // getline(ss, line);
-            // rcvPkt.fileEnd = static_cast<bool>(atoi(line.c_str()));
-            // // getline(ss, line);
-            // // cout << "string stream content: "<< ss.str()<<endl;
-            // // cout << "parse data: "<<line << endl;
-            // if(rcvPkt.len == 0){
-            //     // cout << "assign data to null!\n";
-            //     rcvPkt.data = NULL;
-            // }
-            // else{
-            //     // string payload = "";
-            //     // while(getline(ss, line)){
-            //     //     payload += line;
-            //     // }
-            //     rcvPkt.data = new unsigned char[rcvPkt.len+1];
-                
-            //     char payload[MAXLINE];
-            //     bzero(&payload, MAXLINE);
-            //     // bzero(&rcvPkt.data, rcvPkt.len);
-            //     ss.read(payload, rcvPkt.len);
-            //     int bytesRead = ss.gcount();
-            //     // cout << "bytesRead: " << bytesRead << endl;
-            //     for(int i = 0; i < rcvPkt.len; i ++){
-            //         rcvPkt.data[i] = payload[i];
-            //     }
-            //     rcvPkt.data[rcvPkt.len] = '\0';
-            
-            // }
             Packet rcvPkt;
             string response;
             ss.str("");
