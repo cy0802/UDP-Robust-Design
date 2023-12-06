@@ -160,7 +160,7 @@ int main(int argc, char *argv[]){
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("client socket");}
 	else cout << "successfully create socket\n";
 
-	struct timeval timeout = {0, 5000}; //set timeout for 5 ms 
+	struct timeval timeout = {0, 300000}; //set timeout for 300 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
 	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("client connect") } 
@@ -172,30 +172,35 @@ int main(int argc, char *argv[]){
         
         // send
         bool allsent = true;
+		cout << "============================send===============================\n";
         for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
             if(it->data == nullptr) continue;
             allsent = false;
             it->send(sockfd);
-            // it->print();
-            usleep(75); // sleep for 0.75ms
+            it->print();
+            usleep(100); // sleep for 1ms
         }
         if(allsent) break;
 
+		cout << "============================rcv================================\n";
         // rcv bitset: haven't test
         int n;
         char rcvbuffer[23000];
 		char bset[23000];
 		while(1){
+			
 			bzero(&rcvbuffer, sizeof(rcvbuffer));
 			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
 				cout << "timeout" << "\n";
 				break;
 			} else {
+				cout << "." << flush;
 				bzero(&bset, sizeof(bset));
 				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
-				cout << "rcv from server: " << rcvbuffer << endl;
+				// cout << "rcv from server: " << rcvbuffer << endl;
 			}
 		}
+		cout << "\n============================process===========================\n";
 		cout << "rcv from server: " << bset << endl;
         for(int i = 0; i < sendQueue.size(); i++){
 			if(bset[i] == '0' && sendQueue[i].data == nullptr){
@@ -207,10 +212,9 @@ int main(int argc, char *argv[]){
 				if(file.fail()) errquit("client fstream open file");
 				
 				file.seekg(sendQueue[i].offset);
-				char buf[MTU]; bzero(&buf, sizeof(buf));
-				file.read(buf, sendQueue[i].len);
+				// char buf[MTU]; bzero(&buf, sizeof(buf));
 				sendQueue[i].data = new unsigned char[sendQueue[i].len];
-				memcpy(sendQueue[i].data, buf, sendQueue[i].len);
+				file.read(sendQueue[i].data, sendQueue[i].len);
 			}
             if(bset[i] == '1' && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
         }

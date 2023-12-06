@@ -74,10 +74,7 @@ public:
 		// cout << "\t\tdestructor called\tseq: " << seq << "\n";
 		if(data != nullptr) delete[] data;
 	}
-    // if(sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *) &cliaddr, sizeof(cliaddr)) == -1){
-    //             perror("sending");
-    //             exit(EXIT_FAILURE);
-    //         }
+
 	void send(int sockfd){
 		bzero(&buffer, sizeof(buffer));
 		sprintf(buffer, "%s\n", data);
@@ -102,15 +99,7 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
     }
     return cksum;
 }
-// uint16_t servCalculateCksum(unsigned char* data, int len){
-//     // unsigned short *ptr = (unsigned short*)data;
-//     uint16_t cksum = data[0];
-//     // int round = len/2;
-//     for(int i = 1; i < len; i++){
-//         cksum = cksum ^ data[i];
-//     }
-//     return cksum;
-// }
+
 void print_bitset(){
     for(int i = 0; i < pktNum; i++){
         cout << recvPktStat[i] << "\t";
@@ -134,16 +123,16 @@ int main(int argc, char *argv[]) {
         recvPktStat[i] = '0';
     }
     // IONBF: not use buffer, each I/O fast write and read  
-	setvbuf(stdin, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
-	setvbuf(stdout, NULL, _IONBF, 0); 
+	// setvbuf(stdin, NULL, _IONBF, 0);
+	// setvbuf(stderr, NULL, _IONBF, 0);
+	// setvbuf(stdout, NULL, _IONBF, 0); 
     
     // struct timeval timeout = {2, 0}; //set timeout for 2 seconds
     if ( (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0 ) { 
         perror("socket creation failed"); 
         exit(EXIT_FAILURE); 
     } 
-    struct timeval timeout = {0, 5000}; //set timeout for 5 ms 
+    struct timeval timeout = {0, 200000}; //set timeout for 200 ms 
 	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
     memset(&servaddr, 0, sizeof(servaddr)); 
@@ -170,7 +159,6 @@ int main(int argc, char *argv[]) {
     int startSec = start.tv_sec;
     // ackFile = 0;
     while(1){
-        
         clilen = sizeof(clientaddr);
         int n;
         bzero(&buffer, sizeof(buffer));
@@ -178,10 +166,11 @@ int main(int argc, char *argv[]) {
         if (bytesRead == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // Timeout occurred
-                std::cerr << "======Receive timeout!======\n" << std::endl;
+                // std::cerr << "======Receive timeout!======\n" << std::endl;
                 Packet servStat(recvPktStat);
                 // cout << "recvPktStat: " << recvPktStat << endl;
-                servStat.send(sockfd);
+                int cnt = 3;
+                while(cnt--) servStat.send(sockfd);
                 servStat.print();
                 usleep(10000);
             } else {
@@ -193,54 +182,6 @@ int main(int argc, char *argv[]) {
             }
         }
         else{/*pkt receive success!*/
-            // Packet rcvPkt;
-            // string response;
-            // ss.str("");
-            // ss.clear();
-            // ss << buffer;
-            // string line;
-            // getline(ss, line);
-            // rcvPkt.seq = atoi(line.c_str());
-            // // getline(ss, line);
-            // // rcvPkt.ack = atoi(line.c_str());
-            // // getline(ss, line);
-            // // rcvPkt.fin = static_cast<bool>(atoi(line.c_str()));
-            // getline(ss, line);
-            // rcvPkt.cksum = static_cast<uint16_t>(atoi(line.c_str()));
-            // getline(ss, line);
-            // rcvPkt.offset = atoi(line.c_str());
-            // getline(ss, line);
-            // rcvPkt.len = atoi(line.c_str());
-            // getline(ss, line);
-            // rcvPkt.filename = line;
-            // getline(ss, line);
-            // rcvPkt.fileEnd = static_cast<bool>(atoi(line.c_str()));
-            // // getline(ss, line);
-            // // cout << "string stream content: "<< ss.str()<<endl;
-            // // cout << "parse data: "<<line << endl;
-            // if(rcvPkt.len == 0){
-            //     // cout << "assign data to null!\n";
-            //     rcvPkt.data = NULL;
-            // }
-            // else{
-            //     // string payload = "";
-            //     // while(getline(ss, line)){
-            //     //     payload += line;
-            //     // }
-            //     rcvPkt.data = new unsigned char[rcvPkt.len+1];
-                
-            //     char payload[MAXLINE];
-            //     bzero(&payload, MAXLINE);
-            //     // bzero(&rcvPkt.data, rcvPkt.len);
-            //     ss.read(payload, rcvPkt.len);
-            //     int bytesRead = ss.gcount();
-            //     // cout << "bytesRead: " << bytesRead << endl;
-            //     for(int i = 0; i < rcvPkt.len; i ++){
-            //         rcvPkt.data[i] = payload[i];
-            //     }
-            //     rcvPkt.data[rcvPkt.len] = '\0';
-            
-            // }
             Packet rcvPkt;
             string response;
             ss.str("");
