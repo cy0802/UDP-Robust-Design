@@ -241,24 +241,21 @@ int main(int argc, char *argv[]) {
             ss << buffer;
             ss >> rcvPkt.seq >> rcvPkt.cksum >> rcvPkt.offset >> rcvPkt.len >> rcvPkt.filename >> rcvPkt.fileEnd;
             if(!ss.eof()){
-                size_t remainingDataSize = strlen(buffer) - ss.tellg();
-                rcvPkt.data = new unsigned char[remainingDataSize + 1];
-                
-                // char payload[MAXLINE];
-                // bzero(&payload, MAXLINE);
-                // ss.read(payload, rcvPkt.len);
-                ss.read(reinterpret_cast<char*>(rcvPkt.data), remainingDataSize);
-                // for(int i = 0; i < rcvPkt.len; i ++){
-                //     rcvPkt.data[i] = payload[i];
-                // }
-                cout << "client data len: " << rcvPkt.len << "server data len: " << remainingDataSize << endl;
-                rcvPkt.data[remainingDataSize] = '\0';
+                char ch;
+                ss.get(ch);/*read "\n" at the begining of ss(in front of <rcvPkt.data>)*/
+                // size_t remainingDataSize = strlen(buffer) - ss.tellg();
+                // rcvPkt.data = new unsigned char[remainingDataSize + 1];
+                rcvPkt.data = new unsigned char[rcvPkt.len + 1];
+                ss.read(reinterpret_cast<char*>(rcvPkt.data), rcvPkt.len);
+
+                // cout << "client data len: " << rcvPkt.len << "server data len: " << remainingDataSize << endl;
+                rcvPkt.data[rcvPkt.len] = '\0';
             }
             
             if(rcvPkt.data == NULL){/*data has no stuff*/
                 continue;
             }else{/*data have stuff*/
-                cout << "======seq#" << rcvPkt.seq << "len: " <<rcvPkt.len<<" client data======" << rcvPkt.data << endl;
+                cout << "======seq#" << rcvPkt.seq << "len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
                 uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
                 // uint16_t servCksum = rcvPkt.cksum;
                 // uint16_t servCksum = rcvPkt.calculateCksum();
