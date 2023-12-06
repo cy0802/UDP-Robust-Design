@@ -80,7 +80,7 @@ public:
 		sprintf(buffer, "%s\n", data);
 		int n;
 		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0){
-            cout << "======can not send to client, sleep a while...======\n";
+            // cout << "======can not send to client, sleep a while...======\n";
             usleep(10000);
             // errquit("server write");
         }
@@ -99,7 +99,6 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
     }
     return cksum;
 }
-<<<<<<< HEAD
 
 void print_bitset(){
     for(int i = 0; i < pktNum; i++){
@@ -107,17 +106,7 @@ void print_bitset(){
     }
     cout << "\n";
 }
-=======
-// uint16_t servCalculateCksum(unsigned char* data, int len){
-//     // unsigned short *ptr = (unsigned short*)data;
-//     uint16_t cksum = data[0];
-//     // int round = len/2;
-//     for(int i = 1; i < len; i++){
-//         cksum = cksum ^ data[i];
-//     }
-//     return cksum;
-// }
->>>>>>> d45b354ed1c7609d27d146f61fa17105a4c37ce5
+
 int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
@@ -130,7 +119,7 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    memset(recvPktStat, 0, sizeof(recvPktStat));
+    memset(recvPktStat, '0', sizeof(recvPktStat));
     // for(int i = 0; i < pktNum; i++){
         // recvPktStat[i] = '0';
     // }
@@ -183,7 +172,7 @@ int main(int argc, char *argv[]) {
                 // cout << "recvPktStat: " << recvPktStat << endl;
                 int cnt = 3;
                 while(cnt--) servStat.send(sockfd);
-                servStat.print();
+                // servStat.print();
                 servStat.deleteData();
                 usleep(10000);
             } else {
@@ -220,7 +209,7 @@ int main(int argc, char *argv[]) {
                 uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
                 // uint16_t servCksum = rcvPkt.cksum;
                 // uint16_t servCksum = rcvPkt.calculateCksum();
-                cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
+                // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
                 if(servCksum == rcvPkt.cksum){
                     // ackFile++;
                     bzero(&buffer, sizeof(buffer));
@@ -236,7 +225,7 @@ int main(int argc, char *argv[]) {
                     // string filePath = fileDir + "/" + file;
                     string filePath = fileDir + "/" + rcvPkt.filename;
                     rcvPkt.offset;
-                    cout << "filePath: " << filePath << endl;
+                    // cout << "filePath: " << filePath << endl;
                     fileOut.open(filePath, std::ios::binary | std::ios_base::app);
                     if(fileOut.fail()) errquit("server fstream open file");
                      // Write rcvPkt.data to the file
@@ -246,7 +235,7 @@ int main(int argc, char *argv[]) {
                     fileOut.close();
                 }
                 else{/*cksum is not right*/
-                    cout << "====cksum error!====\n";
+                    cout << "====cksum error!\tserver: " << servCksum << ", client: " << rcvPkt.cksum << "====\n";
                     // bzero(&buffer, sizeof(buffer));
                     // // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
                     // Packet temp(seq, lastAckSeq);
