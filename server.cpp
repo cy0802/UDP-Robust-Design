@@ -52,7 +52,7 @@ public:
                 // }
                 if(_data[i] == '1'){
                     data[i] = '1';
-                }else{
+                }else if(_data[i] == '0'){
                     data[i] = '0';
                 }
                 // data[i] = _data[i]; 
@@ -93,15 +93,29 @@ public:
     //             perror("sending");
     //             exit(EXIT_FAILURE);
     //         }
-	void send(int sockfd){
-		bzero(&buffer, sizeof(buffer));
-		sprintf(buffer, "%s", data);
+	void send(int sockfd, int offset, int len){
+        int bound = max(offset, MAXLINE);
+        char sendData[MAXLINE+10];
+        cout << "=======server Send========\n";
+        
+        bzero(&sendData, sizeof(sendData));
+    	bzero(&buffer, sizeof(buffer));
+        for(int i = 0; i < len; i ++){
+            sendData[i] = data[i+offset];
+        }
+        sendData[len] = '\0';
+        // cout << "===len: " << len << ", offset: " << offset << "====data====\n" << sendData << '\n';
+		cout << "===len: " << len << ", offset: " << offset << endl;
+        sprintf(buffer, "%d\n%d\n%s", &len, &offset, sendData);
+    
 		int n;
+        // cout << "======offset: " << offset << " data========\n" << data << endl;
 		if((n = sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, sizeof(clientaddr))) < 0){
             cout << "======can not send to client, sleep a while...======\n";
             usleep(10000);
             // errquit("server write");
         }
+
     }
     void deleteData(){
         delete [] data;
@@ -132,7 +146,7 @@ int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
 	}
-    system("rm -rf ./serverStore/*");
+    // system("rm -rf ./serverStore/*");
     string fileDir = argv[1];
 	int totalFile = atoi(argv[2]);
     stringstream ss;
@@ -189,25 +203,10 @@ int main(int argc, char *argv[]) {
         bzero(&buffer, sizeof(buffer));
         size_t bytesRead = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&clientaddr, &clilen);
         if (bytesRead == -1) {
-            // if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            //     // Timeout occurred
-            //     std::cerr << "======Receive timeout!======\n" << std::endl;
-            //     Packet servStat(recvPktStat);
-            //     // cout << "recvPktStat: " << recvPktStat << endl;
-            //     servStat.send(sockfd);
-            //     servStat.print();
-            //     servStat.deleteData();
-            //     usleep(10000);
-            // } else {
-            //     // Other error occurred
-            //     // perror("recvfrom failed");
-            //     cout << "can not read file from server\n";
-            //     usleep(10000);
-            //     continue;
-            // }
 			perror("recvfrom");
 			break;
         }
+        cout << "========Serv Recv pkt========\n";
         gettimeofday(&end, 0);
         // int elapsed_time = end.tv_sec - startSec;
         float elapsed_time = (end.tv_sec - startSec) + ((end.tv_usec-startUsec) / 1000000.0);
@@ -217,10 +216,17 @@ int main(int argc, char *argv[]) {
             startSec = end.tv_sec;
             startUsec = end.tv_usec;
             Packet servStat(recvPktStat);
+            int offset = 0, len = 0;
+            while(offset < pktNum){
+                len = min(MAXLINE, pktNum-offset);/*last pkt len: < MAXLINE, others len: == MAXLINE*/
+                servStat.send(sockfd, offset, len);
+                offset += MAXLINE;
+            }
+        
             // cout << "recvPktStat: " << recvPktStat << endl;
-            int cnt = 5;
-            while(cnt--) servStat.send(sockfd);
-            servStat.print();
+            // int cnt = 5;
+            // while(cnt--) servStat.send(sockfd);
+            // servStat.print();
             // printBitset();
 			// usleep(2000); // sleep for 1ms
         }

@@ -178,7 +178,7 @@ void rcv(int sockfd){
 		char data[MTU];
 		bzero(&data, sizeof(data));
 		sscanf(rcvbuffer, "%d\n%d\n%s", &len, &offset, data);
-		
+		// cout << "===rcv len: " << len << ", offset: " << offset << "====data====\n" << data << '\n';
 		lock_.lock();
 		memcpy(bset + offset, data, len);
 		cout << "===================rcv bset==========================\n";
