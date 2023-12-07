@@ -185,8 +185,9 @@ int main(int argc, char *argv[]) {
     while(1){
         clilen = sizeof(clientaddr);
         int n;
-        bzero(&buffer, sizeof(buffer));
-        if((n = recvfrom(sockfd, buffer, MAXLINE, MSG_WAITALL, (struct sockaddr*)&clientaddr, &clilen)) < 0){
+        char buf[MAXLINE+100];
+        bzero(&buf, sizeof(buf));
+        if((n = recvfrom(sockfd, buf, MAXLINE, MSG_WAITALL, (struct sockaddr*)&clientaddr, &clilen)) < 0){
             perror("recvfrom");
 			break;
         }
@@ -194,12 +195,12 @@ int main(int argc, char *argv[]) {
         string response;
         ss.str("");
         ss.clear();
-        ss << buffer;
+        ss << buf;
         ss >> rcvPkt.seq >> rcvPkt.cksum >> rcvPkt.offset >> rcvPkt.len >> rcvPkt.filename >> rcvPkt.fileEnd;
         if(!ss.eof()){
             char ch;
             ss.get(ch);/*read "\n" at the begining of ss(in front of <rcvPkt.data>)*/
-            size_t remainingDataSize = strlen(buffer) - ss.tellg();
+            size_t remainingDataSize = strlen(buf) - ss.tellg();
             // rcvPkt.data = new unsigned char[remainingDataSize + 1];
             rcvPkt.data = new unsigned char[rcvPkt.len + 1];
             ss.read(reinterpret_cast<char*>(rcvPkt.data), rcvPkt.len);
@@ -219,8 +220,8 @@ int main(int argc, char *argv[]) {
             // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
             if(servCksum == rcvPkt.cksum){
                 // ackFile++;
-                bzero(&buffer, sizeof(buffer));
-                // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
+                bzero(&buf, sizeof(buf));
+                // sprintf(buf, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                 cout << "====seq#"<<rcvPkt.seq << " have correct cksum, open file====\n";
                 if(recvPktStat[rcvPkt.seq] == 1){/*have receive*/
                     continue;
@@ -246,8 +247,8 @@ int main(int argc, char *argv[]) {
             }
             else{/*cksum is not right*/
                 // cout << "====cksum error!\tserver: " << servCksum << ", client: " << rcvPkt.cksum << "====\n";
-                // bzero(&buffer, sizeof(buffer));
-                // // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
+                // bzero(&buf, sizeof(buf));
+                // // sprintf(buf, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
                 // Packet temp(seq, lastAckSeq);
                 // temp.send(sockfd);
                 // seq++;
@@ -266,7 +267,7 @@ int main(int argc, char *argv[]) {
             usleep(1000); // sleep for 1ms
         }
 
-        // size_t bytesRead = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&clientaddr, &clilen);
+        // size_t bytesRead = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr*)&clientaddr, &clilen);
         // if (bytesRead == -1) {
         //     if (errno == EAGAIN || errno == EWOULDBLOCK) {
         //         // Timeout occurred
