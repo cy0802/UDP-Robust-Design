@@ -279,27 +279,33 @@ int main(int argc, char *argv[]) {
                 largestAckSeq = rcvPkt.seq;
             }
         }
-        cout << "=====have correct cksum, open file====\n";
-        cout << "======seq#" << rcvPkt.seq<< " offset: " << rcvPkt.offset<< " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
+        // cout << "=====have correct cksum, open file====\n";
+        // cout << "======seq#" << rcvPkt.seq<< " offset: " << rcvPkt.offset<< " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
         
         recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
 
         // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
         // string filePath = fileDir + "/" + file;
         string filePath = fileDir + "/" + rcvPkt.filename;
-        // cout << "filePath: " << filePath << endl;
-        if(!fs::exists(filePath)){
-            string command = "touch " + filePath;
-            system(command.c_str());
-        }
+        cout << "filePath: " << filePath << endl;
+        // if(!fs::exists(filePath)){
+        //     string command = "touch " + filePath;
+        //     system(command.c_str());
+        // }
         fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::ate);
-        if(!fileOut.is_open()){
-            errquit("server fstream open file");
+        if(!fileOut){/*if file not exist, create it*/
+            // errquit("server fstream open file");
+            fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::trunc);
+            fileOut.seekp(rcvPkt.offset, std::ios::beg);
+            fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+            fileOut.close();
+        }else{
+            fileOut.seekp(rcvPkt.offset, std::ios::beg);
+            fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+            fileOut.close();
         }
         // Write rcvPkt.data to the file
-        fileOut.seekp(rcvPkt.offset, std::ios::beg);
-        fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
-        fileOut.close();
+        
         // else{/*data have stuff*/
         //     uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
             
@@ -350,5 +356,6 @@ int main(int argc, char *argv[]) {
         // }
         
     }
+    cout << "======Server End======\n";
     return 0;
 }
