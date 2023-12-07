@@ -198,72 +198,9 @@ int main(int argc, char *argv[]) {
 			perror("recvfrom");
 			break;
         }
-		Packet rcvPkt;
-            string response;
-            ss.str("");
-            ss.clear();
-            ss << buffer;
-            ss >> rcvPkt.seq >> rcvPkt.cksum >> rcvPkt.offset >> rcvPkt.len >> rcvPkt.filename >> rcvPkt.fileEnd;
-            if(!ss.eof()){
-                char ch;
-                ss.get(ch);/*read "\n" at the begining of ss(in front of <rcvPkt.data>)*/
-                // size_t remainingDataSize = strlen(buffer) - ss.tellg();
-                // rcvPkt.data = new unsigned char[remainingDataSize + 1];
-                rcvPkt.data = new unsigned char[rcvPkt.len + 1];
-                ss.read(reinterpret_cast<char*>(rcvPkt.data), rcvPkt.len);
-
-                // cout << "client data len: " << rcvPkt.len << "server data len: " << remainingDataSize << endl;
-                rcvPkt.data[rcvPkt.len] = '\0';
-            }
-            
-            if(rcvPkt.data == NULL){/*data has no stuff*/
-                continue;
-            }else{/*data have stuff*/
-                // cout << "======seq#" << rcvPkt.seq << " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
-                uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
-                // uint16_t servCksum = rcvPkt.cksum;
-                // uint16_t servCksum = rcvPkt.calculateCksum();
-                // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
-                if(servCksum == rcvPkt.cksum){
-                    // ackFile++;
-                    bzero(&buffer, sizeof(buffer));
-                    // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
-                    cout << "====seq#"<<rcvPkt.seq << " have correct cksum, open file====\n";
-					if(recvPktStat[rcvPkt.seq] == 1){/*have receive*/
-						continue;
-					}
-					if(rcvPkt.fileEnd){/*if true, counter++*/
-						ackFile++;
-						if(rcvPkt.seq > largestAckSeq){
-							largestAckSeq = rcvPkt.seq;
-						}
-					}
-					recvPktStat[rcvPkt.seq] = 1;/*means has receive #seq pkt*/
-
-                    // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
-                    // string filePath = fileDir + "/" + file;
-                    string filePath = fileDir + "/" + rcvPkt.filename;
-                    // cout << "filePath: " << filePath << endl;
-                    fileOut.open(filePath, std::ios::binary | std::ios_base::app);
-                    if(fileOut.fail()) errquit("server fstream open file");
-                     // Write rcvPkt.data to the file
-                    fileOut.seekp(rcvPkt.offset, std::ios::beg);
-					fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
-
-                    // Close the file
-                    fileOut.close();
-                }
-                else{/*cksum is not right*/
-                    cout << "====cksum error!====\n";
-                    // bzero(&buffer, sizeof(buffer));
-                    // // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
-                    // Packet temp(seq, lastAckSeq);
-                    // temp.send(sockfd);
-                    // seq++;
-                }
-            }
         gettimeofday(&end, 0);
         int elapsed_time = end.tv_sec - startSec;
+        //cout << "start: " << startSec << "\tend: " << end.tv_sec << "\n";
         if(elapsed_time > 1){
             cout << "===========send server stat===============\n";
             startSec = end.tv_sec;
@@ -272,8 +209,73 @@ int main(int argc, char *argv[]) {
             int cnt = 5;
             while(cnt--) servStat.send(sockfd);
             servStat.print();
-			usleep(2000); // sleep for 1ms
+			// usleep(2000); // sleep for 1ms
         }
+		Packet rcvPkt;
+        string response;
+        ss.str("");
+        ss.clear();
+        ss << buffer;
+        ss >> rcvPkt.seq >> rcvPkt.cksum >> rcvPkt.offset >> rcvPkt.len >> rcvPkt.filename >> rcvPkt.fileEnd;
+        if(!ss.eof()){
+            char ch;
+            ss.get(ch);/*read "\n" at the begining of ss(in front of <rcvPkt.data>)*/
+            // size_t remainingDataSize = strlen(buffer) - ss.tellg();
+            // rcvPkt.data = new unsigned char[remainingDataSize + 1];
+            rcvPkt.data = new unsigned char[rcvPkt.len + 1];
+            ss.read(reinterpret_cast<char*>(rcvPkt.data), rcvPkt.len);
+
+            // cout << "client data len: " << rcvPkt.len << "server data len: " << remainingDataSize << endl;
+            rcvPkt.data[rcvPkt.len] = '\0';
+        }
+        
+        if(rcvPkt.data == NULL){/*data has no stuff*/
+            continue;
+        }else{/*data have stuff*/
+            // cout << "======seq#" << rcvPkt.seq << " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
+            uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
+            // uint16_t servCksum = rcvPkt.cksum;
+            // uint16_t servCksum = rcvPkt.calculateCksum();
+            // cout << "server cksum: " << servCksum <<", client cksum: " << rcvPkt.cksum << endl;
+            if(servCksum == rcvPkt.cksum){
+                // ackFile++;
+                bzero(&buffer, sizeof(buffer));
+                // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
+                cout << "====seq#"<<rcvPkt.seq << " have correct cksum, open file====\n";
+                if(recvPktStat[rcvPkt.seq] == 1){/*have receive*/
+                    continue;
+                }
+                if(rcvPkt.fileEnd){/*if true, counter++*/
+                    ackFile++;
+                    if(rcvPkt.seq > largestAckSeq){
+                        largestAckSeq = rcvPkt.seq;
+                    }
+                }
+                recvPktStat[rcvPkt.seq] = 1;/*means has receive #seq pkt*/
+
+                // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
+                // string filePath = fileDir + "/" + file;
+                string filePath = fileDir + "/" + rcvPkt.filename;
+                // cout << "filePath: " << filePath << endl;
+                fileOut.open(filePath, std::ios::binary | std::ios_base::app);
+                if(fileOut.fail()) errquit("server fstream open file");
+                    // Write rcvPkt.data to the file
+                fileOut.seekp(rcvPkt.offset, std::ios::beg);
+                fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+
+                // Close the file
+                fileOut.close();
+            }
+            else{/*cksum is not right*/
+                cout << "====cksum error!====\n";
+                // bzero(&buffer, sizeof(buffer));
+                // // sprintf(buffer, "receive pkt#%d, cksum failed:(\n", rcvPkt.seq);
+                // Packet temp(seq, lastAckSeq);
+                // temp.send(sockfd);
+                // seq++;
+            }
+        }
+        
 		// bool endServ = false;
 		if(ackFile == totalFile){/*TODO: check that we can receive all file(1) before last fileEnd*/
 			bool recvAll = true;
