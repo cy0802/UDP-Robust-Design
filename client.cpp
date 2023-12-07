@@ -141,6 +141,7 @@ public:
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
+		cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
 		if(data != nullptr) delete[] data;
 		data = nullptr;
 	}
@@ -165,6 +166,9 @@ int main(int argc, char *argv[]){
 
 	fileDir = argv[1];
 	totalFile = atoi(argv[2]);
+	setvbuf(stdin, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
+	setvbuf(stdout, NULL, _IONBF, 0); 
 
     memset(&sin, 0, sizeof(sin));
 	sin.sin_family = AF_INET;
@@ -195,11 +199,11 @@ int main(int argc, char *argv[]){
             if(bset[it->seq] == '1') continue;
             allsent = false;
             it->send(sockfd);
-            // it->print();
-            usleep(1000); // sleep for 1ms
+            // it->printDetail();
+            usleep(20000); // sleep for 1ms
         }
         if(allsent) break;
-		usleep(300000);
+		// usleep(300000);
 
 		cout << "============================rcv================================\n";
         // rcv bitset: haven't test
@@ -216,7 +220,7 @@ int main(int argc, char *argv[]){
 				// cout << "." << flush;
 				bzero(&bset, sizeof(bset));
 				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
-				cout << "rcv from server: " << rcvbuffer << endl;
+				// cout << "rcv from server: " << rcvbuffer << endl;
 			}
 		}
 		// cout << "\n============================process===========================\n";
