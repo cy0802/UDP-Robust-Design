@@ -159,10 +159,13 @@ static int sockfd = -1;
 static struct sockaddr_in sin;
 int totalFile;
 char bset[23000];
-char rcvbuffer[23000];
+char rcvbuffer[MTU + 10];
 bool finish;
 
 void rcv(int sockfd){
+	lock_.lock();
+	memset(bset, '0', sizeof(bset) - 1);
+	lock_.unlock();
 	while(1){
 		lock_.lock();
 		if(finish) break;
@@ -171,13 +174,15 @@ void rcv(int sockfd){
 		int n;
         bzero(&rcvbuffer, sizeof(rcvbuffer));
 		if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0) errquit("client thread 2 read");
+		int len, offset;
+		char data[MTU];
+		bzero(&data, sizeof(data));
+		sscanf(rcvbuffer, "%d\n%d\n%s", &len, &offset, data);
 		
 		lock_.lock();
-		memset(bset, '0', sizeof(bset) - 1);
-		memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
-		bset[sizeof(bset)] = '\0';
-		// cout << "===================rcv bset==========================\n" << bset << "\n";
+		memcpy(bset + offset, data, len);
 		cout << "===================rcv bset==========================\n";
+		// cout << "len: " << len << "\toffset: " << offset << "\ndata: " << data << "\n";
 		lock_.unlock();
 	}
 }
