@@ -182,7 +182,7 @@ void rcv(int sockfd){
 		lock_.lock();
 		memcpy(bset + offset, data, len);
 		cout << "===================rcv bset==========================\n";
-		cout << "len: " << len << "\toffset: " << offset << "\ndata: " << data << "\n";
+		// cout << "len: " << len << "\toffset: " << offset << "\ndata: " << data << "\n";
 		lock_.unlock();
 	}
 }

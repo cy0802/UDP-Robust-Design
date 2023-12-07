@@ -266,43 +266,50 @@ int main(int argc, char *argv[]) {
         
         if(rcvPkt.data == NULL){/*data has no stuff*/
             continue;
-        }
-        bzero(&buffer, sizeof(buffer));
-        // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
-        
-        if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
-            continue;
-        }
-        if(rcvPkt.fileEnd){/*if true, counter++*/
-            ackFile++;
-            if(rcvPkt.seq > largestAckSeq){
-                largestAckSeq = rcvPkt.seq;
-            }
-        }
-        // cout << "=====have correct cksum, open file====\n";
-        // cout << "======seq#" << rcvPkt.seq<< " offset: " << rcvPkt.offset<< " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
-        
-        recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
-
-        // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
-        // string filePath = fileDir + "/" + file;
-        string filePath = fileDir + "/" + rcvPkt.filename;
-        cout << "filePath: " << filePath << endl;
-        // if(!fs::exists(filePath)){
-        //     string command = "touch " + filePath;
-        //     system(command.c_str());
-        // }
-        fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::ate);
-        if(!fileOut){/*if file not exist, create it*/
-            // errquit("server fstream open file");
-            fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::trunc);
-            fileOut.seekp(rcvPkt.offset, std::ios::beg);
-            fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
-            fileOut.close();
         }else{
-            fileOut.seekp(rcvPkt.offset, std::ios::beg);
-            fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
-            fileOut.close();
+            uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
+            if(servCksum == rcvPkt.cksum){
+                bzero(&buffer, sizeof(buffer));
+                // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
+                
+                if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
+                    continue;
+                }
+                if(rcvPkt.fileEnd){/*if true, counter++*/
+                    ackFile++;
+                    if(rcvPkt.seq > largestAckSeq){
+                        largestAckSeq = rcvPkt.seq;
+                    }
+                }
+                cout << "=====seq#" << rcvPkt.seq << " have correct cksum, open file====\n";
+                // cout << "======seq#" << rcvPkt.seq<< " offset: " << rcvPkt.offset<< " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
+                
+                recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
+
+                // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
+                // string filePath = fileDir + "/" + file;
+                string filePath = fileDir + "/" + rcvPkt.filename;
+                cout << "filePath: " << filePath << endl;
+                // if(!fs::exists(filePath)){
+                //     string command = "touch " + filePath;
+                //     system(command.c_str());
+                // }
+                fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::ate);
+                if(!fileOut){/*if file not exist, create it*/
+                    // errquit("server fstream open file");
+                    fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::trunc);
+                    fileOut.seekp(rcvPkt.offset, std::ios::beg);
+                    fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+                    fileOut.close();
+                }else{
+                    fileOut.seekp(rcvPkt.offset, std::ios::beg);
+                    fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+                    fileOut.close();
+                }
+            }
+            else{
+                cout <<"cksum error!\n";
+            }
         }
         // Write rcvPkt.data to the file
         
