@@ -2,7 +2,8 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <bitset>
+#include <thread>
+#include <mutex>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,7 @@ using namespace std;
 
 char buffer[MTU + 100];
 char* fileDir;
+mutex lock_;
 
 class Packet{
 public:
@@ -155,8 +157,28 @@ vector<Packet> sendQueue;
 static int sockfd = -1;
 static struct sockaddr_in sin;
 int totalFile;
+char bset[23000];
+char rcvbuffer[23000];
+bool finish;
 
-
+void rcv(int sockfd){
+	while(1){
+		lock_.lock();
+		if(finish) break;
+		lock_.unlock();
+		
+		int n;
+        bzero(&rcvbuffer, sizeof(rcvbuffer));
+		if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0) errquit("client thread 2 read");
+		
+		lock_.lock();
+		memset(bset, '0', sizeof(bset) - 1);
+		memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
+		bset[sizeof(bset)] = '\0';
+		cout << "===================rcv bset==========================\n" << bset << "\n";
+		lock_.unlock();
+	}
+}
 
 int main(int argc, char *argv[]){
     if(argc < 3) {
@@ -176,17 +198,20 @@ int main(int argc, char *argv[]){
 
 	if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0){ errquit("client socket");}
 	else cout << "successfully create socket\n";
+	finish = false;
 
-	struct timeval timeout = {0, 50000}; //set timeout for 300 ms 
-	setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
+	// struct timeval timeout = {0, 50000}; //set timeout for 300 ms 
+	// setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(struct timeval));
 
 	if(connect(sockfd, (struct sockaddr *) &sin, sizeof(sin)) < 0){ errquit("client connect") } 
 	else cout << "successfully connect to server\n";
 
     readFile();
-
-	char bset[23000];
-	memset(bset, '0', sizeof(bset));
+	
+	thread receive(rcv, sockfd);
+	receive.detach();
+	
+	// memset(bset, '0', sizeof(bset));
     while(1){    
         // send
         bool allsent = true;
@@ -198,45 +223,12 @@ int main(int argc, char *argv[]){
             // it->print();
             usleep(1000); // sleep for 1ms
         }
-        if(allsent) break;
-		usleep(300000);
-
-		cout << "============================rcv================================\n";
-        // rcv bitset: haven't test
-        int n;
-        char rcvbuffer[23000];
-		
-		while(1){
-			cout << "======IN WHILE LOOP======\n";
-			bzero(&rcvbuffer, sizeof(rcvbuffer));
-			if((n = read(sockfd, rcvbuffer, sizeof(rcvbuffer))) < 0){
-				cout << "=======timeout======" << "\n";
-				break;
-			} else {
-				// cout << "." << flush;
-				bzero(&bset, sizeof(bset));
-				memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
-				cout << "rcv from server: " << rcvbuffer << endl;
-			}
+        if(allsent){ 
+			lock_.lock();
+			finish = true;
+			lock_.unlock();
+			break;
 		}
-		// cout << "\n============================process===========================\n";
-		// cout << "rcv from server: " << bset << endl;
-        // for(int i = 0; i < sendQueue.size(); i++){
-		// 	if(bset[i] == '0' && sendQueue[i].data == nullptr){
-		// 		// if the packet is marked not received but the data is deleted, read it again
-		// 		char* filepath;
-		// 		sprintf(filepath, "%s/%s", fileDir, sendQueue[i].filename);
-		// 		fstream file;
-		// 		file.open(filepath, ios::in);
-		// 		if(file.fail()) errquit("client fstream open file");
-				
-		// 		file.seekg(sendQueue[i].offset);
-		// 		// char buf[MTU]; bzero(&buf, sizeof(buf));
-		// 		sendQueue[i].data = new unsigned char[sendQueue[i].len];
-		// 		file.read(reinterpret_cast<char*>(sendQueue[i].data), sendQueue[i].len);
-		// 	}
-        //     // if(bset[i] == '1' && sendQueue[i].data != nullptr) sendQueue[i].isACKed();
-        // }
     }
     close(sockfd);
     return 0;
