@@ -143,7 +143,7 @@ public:
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
-		cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
+		// cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
 		if(data != nullptr) delete[] data;
 		data = nullptr;
 	}
@@ -176,7 +176,8 @@ void rcv(int sockfd){
 		memset(bset, '0', sizeof(bset) - 1);
 		memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
 		bset[sizeof(bset)] = '\0';
-		cout << "===================rcv bset==========================\n" << bset << "\n";
+		// cout << "===================rcv bset==========================\n" << bset << "\n";
+		cout << "===================rcv bset==========================\n";
 		lock_.unlock();
 	}
 }
@@ -224,8 +225,8 @@ int main(int argc, char *argv[]){
             if(bset[it->seq] == '1') continue;
             allsent = false;
             it->send(sockfd);
-            // it->printDetail();
-            usleep(20000); // sleep for 1ms
+            // it->print();
+            usleep(2000); // sleep for 1ms
         }
         if(allsent){ 
 			lock_.lock();
