@@ -112,8 +112,8 @@ public:
 	}
 	void printDetail(){
 		printf("====================================================\n");
-		printf("seq: %d\ncksum: %hu\noffset: %d\nlen: %d\nfilename: %s\nfileEnd: %d\n%s\n",
-			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
+		printf("seq: %d\ncksum: %hu\noffset: %d\nlen: %d\nfilename: %s\nfileEnd: %d\n",
+			seq, cksum, offset, len, filename.c_str(), fileEnd);
 		printf("====================================================\n");
 		// cout << " seq: " << seq << "\n";
 	}
@@ -143,7 +143,7 @@ public:
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
-		// cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
+		cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
 		if(data != nullptr) delete[] data;
 		data = nullptr;
 	}
@@ -229,8 +229,8 @@ int main(int argc, char *argv[]){
         for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
             if(bset[it->seq] == '1') continue;
             allsent = false;
+			it->printDetail();
             it->send(sockfd);
-            // it->print();
             usleep(2000); // sleep for 1ms
         }
         if(allsent){ 
