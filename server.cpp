@@ -21,7 +21,8 @@ using namespace std;
 const int port = 47777;
 const int pktNum = 23000;
 char buffer[MAXLINE+100];
-short recvPktStat[pktNum];
+// short recvPktStat[pktNum];
+char recvPktStat[pktNum];
 // const int ackFile = 0;
 // const char *hello = "Hello from server"; 
 struct sockaddr_in servaddr, clientaddr; 
@@ -35,7 +36,7 @@ public:
 	bool fileEnd;
 	unsigned char* data;
 
-    Packet(short _data[]){
+    Packet(char* _data){
         // char _data[1000] = "hello, world!\n";
 		if(_data != nullptr){
             // size_t _len = sizeof(_data);
@@ -43,12 +44,18 @@ public:
 			// memmove(data, _data, pktNum);
             // memcpy(data, _data, pktNum);
             for(int i = 0; i < pktNum-1; i++){
-                if(_data[i] == 1){
+                // if(_data[i] == 1){
+                //     data[i] = '1';
+                // }
+                // else{
+                //     data[i] = '0';
+                // }
+                if(_data[i] == '1'){
                     data[i] = '1';
-                }
-                else{
+                }else{
                     data[i] = '0';
                 }
+                // data[i] = _data[i]; 
             }
 			data[pktNum-1] = '\0';
 		} else {
@@ -110,15 +117,17 @@ uint16_t servCalculateCksum(unsigned char* data, int len){
     }
     return cksum;
 }
-// uint16_t servCalculateCksum(unsigned char* data, int len){
-//     // unsigned short *ptr = (unsigned short*)data;
-//     uint16_t cksum = data[0];
-//     // int round = len/2;
-//     for(int i = 1; i < len; i++){
-//         cksum = cksum ^ data[i];
-//     }
-//     return cksum;
-// }
+void printBitset(){
+    cout << "===================servStat===============\n";
+    for(int i = 0; i < pktNum-1; i++){
+        if(recvPktStat[i] == '1'){
+            cout << "1";
+        }else{
+            cout << "0";
+        }
+    }
+    cout << '\n';
+}
 int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
@@ -131,7 +140,7 @@ int main(int argc, char *argv[]) {
     ss.str("");
     ss.clear();
 	int sockfd; 
-    memset(recvPktStat, 0, sizeof(recvPktStat));
+    memset(recvPktStat, '0', sizeof(recvPktStat));
     // for(int i = 0; i < pktNum; i++){
         // recvPktStat[i] = '0';
     // }
@@ -170,6 +179,7 @@ int main(int argc, char *argv[]) {
     timeval start, end;
     gettimeofday(&start, 0);
     int startSec = start.tv_sec;
+    int startUsec = start.tv_usec;
     int ackFile = 0;
 	int largestAckSeq = 0;
     while(1){
@@ -199,17 +209,34 @@ int main(int argc, char *argv[]) {
 			break;
         }
         gettimeofday(&end, 0);
-        int elapsed_time = end.tv_sec - startSec;
+        // int elapsed_time = end.tv_sec - startSec;
+        float elapsed_time = (end.tv_sec - startSec) + ((end.tv_usec-startUsec) / 1000000.0);
         //cout << "start: " << startSec << "\tend: " << end.tv_sec << "\n";
-        if(elapsed_time > 1){
+        if(elapsed_time > 0.2){/*0.2s*/
             cout << "===========send server stat===============\n";
             startSec = end.tv_sec;
+            startUsec = end.tv_usec;
             Packet servStat(recvPktStat);
             // cout << "recvPktStat: " << recvPktStat << endl;
             int cnt = 5;
             while(cnt--) servStat.send(sockfd);
             servStat.print();
+            // printBitset();
 			// usleep(2000); // sleep for 1ms
+        }
+        // bool endServ = false;
+		if(ackFile == totalFile){/*TODO: check that we can receive all file(1) before last fileEnd*/
+			bool recvAll = true;
+            cout << "====largest ack: "<< largestAckSeq << "=====\n";
+			for(int i = 0; i <= largestAckSeq; i++){
+				if(recvPktStat[i] != '1'){
+					recvAll = false;
+					break;
+				}
+			}
+			if(recvAll){
+				break;
+			}
         }
 		Packet rcvPkt;
         string response;
@@ -242,7 +269,7 @@ int main(int argc, char *argv[]) {
                 bzero(&buffer, sizeof(buffer));
                 // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                 cout << "====seq#"<<rcvPkt.seq << " have correct cksum, open file====\n";
-                if(recvPktStat[rcvPkt.seq] == 1){/*have receive*/
+                if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
                     continue;
                 }
                 if(rcvPkt.fileEnd){/*if true, counter++*/
@@ -251,7 +278,7 @@ int main(int argc, char *argv[]) {
                         largestAckSeq = rcvPkt.seq;
                     }
                 }
-                recvPktStat[rcvPkt.seq] = 1;/*means has receive #seq pkt*/
+                recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
 
                 // string file = rcvPkt.filename.substr(rcvPkt.filename.find_last_of("/")+1); 
                 // string filePath = fileDir + "/" + file;
@@ -276,22 +303,6 @@ int main(int argc, char *argv[]) {
             }
         }
         
-		// bool endServ = false;
-		if(ackFile == totalFile){/*TODO: check that we can receive all file(1) before last fileEnd*/
-			bool recvAll = true;
-			for(int i = 0; i <= largestAckSeq; i++){
-				if(recvPktStat[i] != 1){
-					recvAll = false;
-					break;
-				}
-			}
-			if(recvAll){
-				break;
-			}
-        }
-		// if(endServ){
-		// 	break;
-		// }
     }
     return 0;
 }

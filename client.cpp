@@ -176,8 +176,8 @@ void rcv(int sockfd){
 		memset(bset, '0', sizeof(bset) - 1);
 		memcpy(bset, rcvbuffer, sizeof(rcvbuffer));
 		bset[sizeof(bset)] = '\0';
-		// cout << "===================rcv bset==========================\n" << bset << "\n";
-		cout << "===================rcv bset==========================\n";
+		cout << "===================rcv bset==========================\n" << bset << "\n";
+		// cout << "===================rcv bset==========================\n";
 		lock_.unlock();
 	}
 }
