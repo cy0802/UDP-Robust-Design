@@ -22,7 +22,7 @@ def load_payload(path):
 server = load_payload(sys.argv[1])
 client = load_payload(sys.argv[2])
 
-r = remote('inp.zoolab.org' if len(sys.argv) < 4 else sys.argv[3], 10560)
+r = remote('140.113.213.213' if len(sys.argv) < 4 else sys.argv[3], 10560)
 
 solpow.solve_pow(r)
 

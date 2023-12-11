@@ -28,7 +28,7 @@ public:
 	int len; // only length of data
 	string filename;
 	bool fileEnd;
-	unsigned char* data;
+	char* data;
 
 	// copy constructor
 	Packet(const Packet &pkt){
@@ -36,7 +36,7 @@ public:
 		this->seq = pkt.seq; this->cksum = pkt.cksum; this->len = pkt.len;
 		this->filename = pkt.filename; this->fileEnd = pkt.fileEnd; this->offset = pkt.offset;
 		if(pkt.data != nullptr){
-			this->data = new unsigned char[pkt.len + 1];
+			this->data = new char[pkt.len + 1];
 			memmove(this->data, pkt.data, pkt.len);
 			this->data[len] = '\0';
 		} else {
@@ -56,7 +56,7 @@ public:
 		data = nullptr;
 		cksum = 0;
 		// if(_data != nullptr){
-		// 	data = new unsigned char[_len + 1];
+		// 	data = new char[_len + 1];
 		// 	memmove(data, _data, _len);
 		// 	data[_len] = '\0';
 		// 	// len ++;
@@ -90,7 +90,7 @@ public:
 		// cout << "\t\toverloaded assignment called\tassign seq " << other.seq << " to seq " << seq << "\n";
 		if(this != &other){
 			// delete [] data;
-			data = new unsigned char[other.len + 1];
+			data = new char[other.len + 1];
 			memmove(data, other.data, len);
 			data[len] = '\0';
 		}
@@ -132,12 +132,12 @@ public:
 		file.open(filepath, ios::in);
 		if(file.fail()) errquit("client open file");
 		file.seekg(offset);
-		data = new unsigned char[len + 1];
-		file.read(reinterpret_cast<char*>(data), len);
+		data = new char[len + 1];
+		file.read(data, len);
 		data[len] = '\0';
 		file.close();
 		if(cksum == 0) calculateCksum();
-		// cout << data << "\n";
+		// if(seq == 1 || seq == 2) cout << data << "\n";
 		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n%s",
 			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
 		int n;
@@ -181,7 +181,7 @@ void rcv(int sockfd){
 		// cout << "===rcv len: " << len << ", offset: " << offset << "====data====\n" << data << '\n';
 		lock_.lock();
 		memcpy(bset + offset, data, len);
-		cout << "===================rcv bset==========================\n";
+		// cout << "===================rcv bset==========================\n";
 		// cout << "len: " << len << "\toffset: " << offset << "\ndata: " << data << "\n";
 		lock_.unlock();
 	}
@@ -229,7 +229,7 @@ int main(int argc, char *argv[]){
         for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
             if(bset[it->seq] == '1') continue;
             allsent = false;
-			// it->printDetail();
+			if(it->seq == 1 || it->seq == 2) it->printDetail();
             it->send(sockfd);
             usleep(2000); // sleep for 1ms
         }
@@ -246,7 +246,7 @@ int main(int argc, char *argv[]){
 
 void readFile(){
     int seq = 0;
-    char buf[MTU];
+    char buf[MTU-100];
     for(int curFile = 0; curFile < totalFile; curFile++){
         char filename[10];
         sprintf(filename, "%06d", curFile);
