@@ -143,7 +143,7 @@ public:
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
-		// cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
+		cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
 		if(data != nullptr) delete[] data;
 		data = nullptr;
 	}
@@ -168,7 +168,10 @@ void rcv(int sockfd){
 	lock_.unlock();
 	while(1){
 		lock_.lock();
-		if(finish) break;
+		if(finish){
+			lock_.unlock();
+			break;
+		}
 		lock_.unlock();
 		
 		int n;
@@ -230,6 +233,7 @@ int main(int argc, char *argv[]){
             if(bset[it->seq] == '1') continue;
             allsent = false;
 			// it->printDetail();
+			// it->print();
             it->send(sockfd);
             usleep(2000); // sleep for 1ms
         }

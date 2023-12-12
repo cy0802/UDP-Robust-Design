@@ -12,3 +12,4 @@ server
 test.*
 serverStore/
 *.out
+server_nocksum.cpp
