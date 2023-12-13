@@ -12,7 +12,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#define MTU 1400
+#define MTU 800
 #define errquit(m) { perror(m); exit(-1); }
 using namespace std;
 
@@ -155,7 +155,6 @@ public:
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
-		// cout << "====seq#" << seq << ", len: "<<len << " data====\n" << data<<endl;
 		if(data != nullptr) delete[] data;
 		data = nullptr;
 	}
@@ -180,7 +179,10 @@ void rcv(int sockfd){
 	lock_.unlock();
 	while(1){
 		lock_.lock();
-		if(finish) break;
+		if(finish){
+			lock_.unlock();
+			break;
+		}
 		lock_.unlock();
 		
 		int n;
