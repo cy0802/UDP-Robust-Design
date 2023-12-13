@@ -134,16 +134,18 @@ public:
 		file.seekg(offset);
 		data = new char[len + 1];
 		file.read(data, len);
-		// data[len] = '\0';
+		data[len] = '\0';
 		file.close();
 		if(cksum == 0) calculateCksum();
-		// if(seq == 1 || seq == 2) cout << data << "\n";
-		// cout << "====seq#" << seq << ", len: "<<len << ", data====\n";
-		// for(int i = 0; i < len; i++){
-        //     cout << data[i];
-        // }
-        // cout << endl;
-		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n%s",
+		
+		// here
+		// if(seq == 99 || seq == 103){ 
+		// 	cout << "client ================================================\n";
+		// 	cout << data << "\n";
+		// 	cout << "=======================================================\n";
+		// }
+		
+		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n%s\0",
 			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
@@ -162,7 +164,7 @@ vector<Packet> sendQueue;
 static int sockfd = -1;
 static struct sockaddr_in sin;
 int totalFile;
-char bset[23000];
+char bset[25000];
 char rcvbuffer[MTU + 10];
 bool finish;
 
@@ -200,6 +202,20 @@ int main(int argc, char *argv[]){
 	}
 
 	fileDir = argv[1];
+
+
+
+	// ================================================================
+	// ifstream file;
+	// string filepath = fileDir;
+	// filepath = filepath + "/000000";
+	// file.open(filepath);
+	// if(file.fail()) errquit("client read file");
+	// cout << "client 000000 ============================================\n";
+	// cout << file.rdbuf();
+	// cout << "\n==========================================================\n";
+	// ================================================================
+
 	totalFile = atoi(argv[2]);
 	setvbuf(stdin, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
@@ -232,11 +248,11 @@ int main(int argc, char *argv[]){
     while(1){    
         // send
         bool allsent = true;
-		cout << "============================send===============================\n";
+		// cout << "============================send===============================\n";
         for(auto it = sendQueue.begin(); it < sendQueue.end(); it++){
             if(bset[it->seq] == '1') continue;
             allsent = false;
-			if(it->seq == 1 || it->seq == 2) it->printDetail();
+			// if(it->seq == 1 || it->seq == 2) it->printDetail();
             it->send(sockfd);
             usleep(2000); // sleep for 1ms
         }

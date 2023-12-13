@@ -8,7 +8,7 @@ client
 core.20
 core.21
 core.22
-server
+server*
 test.*
 serverStore/
 *.out

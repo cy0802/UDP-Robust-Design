@@ -14,12 +14,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#define MTU 800
+#define MTU 1400
 #define errquit(m) { perror(m); exit(-1); }
 using namespace std;
 
 char buffer[MTU + 100];
-char rcvflag[23460];
+char rcvflag[25000];
 char* fileDir;
 struct sockaddr_in servaddr, clientaddr; 
 socklen_t clilen;
@@ -45,7 +45,7 @@ public:
 		bzero(data, sizeof(data));
 		ss.ignore();
 		ss.read(data, len);
-		// data[len] = '\0';
+		data[len] = '\0';
 	}
 
 	void printDetail(){
@@ -56,30 +56,22 @@ public:
 		// cout << " seq: " << seq << "\n";
 	}
 };
-uint16_t servCalculateCksum(char* data, int len){
-    unsigned short *ptr = (unsigned short*)data;
-    uint16_t cksum = ptr[0];
-    int round = len/2;
-    for(int i = 1; i < round; i++){
-        cksum = cksum ^ ptr[i];
-    }
-    return cksum;
-}
+
 void sendACK(){
 	while(!clientAccepted) usleep(100);
-	char buffer[MTU];
+	char buf[MTU];
 	char tmp[MTU];
 	while(1){
 		lock_.lock();
-		for(int offset = 0; offset < sizeof(rcvflag); offset += MTU-20){
-			bzero(buffer, sizeof(buffer));
+		for(int offset = 0; offset < 23000; offset += MTU-20){
+			bzero(buf, sizeof(buf));
 			bzero(tmp, sizeof(tmp));
 			// cout << rcvflag + offset << endl;
 			strncpy(tmp, rcvflag + offset, MTU-20);
-			sprintf(buffer, "%d\n%d\n%s", MTU-20, offset, tmp);
+			sprintf(buf, "%d\n%d\n%s", MTU-20, offset, tmp);
 			// cout << "=============== sendACK =====================\n";
 			// cout << buffer << "\n=============================================\n";
-			if(sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, clilen) < 0)
+			if(sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *) &clientaddr, clilen) < 0)
 				errquit("server thread 2 sendto");
 		}
 		lock_.unlock();
@@ -129,16 +121,19 @@ int main(int argc, char* argv[]){
 			errquit("server recvfrom");
 		clientAccepted = true;
 		Packet rcvedPkt(buffer);
+		
 		// rcvedPkt.printDetail();
-		uint16_t servCksum = servCalculateCksum(rcvedPkt.data, rcvedPkt.len);
 		// cout << "========== rcv seq " << rcvedPkt.seq << " ===================\n";
-		lock_.lock();
-		if(servCksum != rcvedPkt.cksum || rcvflag[rcvedPkt.seq] == '1'){
-			lock_.unlock();
-			continue;
+		if(rcvflag[rcvedPkt.seq] == '1') continue;
+
+		// here
+		if(rcvedPkt.seq % 200 == 17){ 
+			// cout << "server ================================================\n";
+			rcvedPkt.printDetail();
+			// cout << rcvedPkt.data << endl;
+			// cout << "=======================================================\n";
 		}
-		lock_.unlock();
-		// if(rcvflag[rcvedPkt.seq] == '1') continue;
+		
 
 		// cnt++; 
 		// if(cnt % 2 == 0){
@@ -149,12 +144,7 @@ int main(int argc, char* argv[]){
 		lock_.lock();
 		rcvflag[rcvedPkt.seq] = '1';
 		lock_.unlock();
-		cout << "======seq#" << rcvedPkt.seq<< " offset: " << rcvedPkt.offset<< " len: " <<rcvedPkt.len<<" client data======\n";
-        // rcvedPkt.data << endl;		
-        for(int i = 0; i < rcvedPkt.len; i++){
-            cout << rcvedPkt.data[i];
-        }
-        cout << endl;
+
 		int filenum = atoi(rcvedPkt.filename);
 		files[filenum].seekp(rcvedPkt.offset, ios::beg);
 		files[filenum].write(rcvedPkt.data, rcvedPkt.len);
@@ -176,6 +166,14 @@ int main(int argc, char* argv[]){
 		}
 	}
 	for(int i = 0; i < totalFile; i++) files[i].close();
-	
+	ifstream file;
+	string filepath = fileDir;
+	filepath = filepath + "/000000";
+	file.open(filepath);
+	if(file.fail()) errquit("server read file");
+	cout << "server 000000 ============================================\n";
+	cout << file.rdbuf();
+	cout << "\n==========================================================\n";
+
 	return 0;
 }

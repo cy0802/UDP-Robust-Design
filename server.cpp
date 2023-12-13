@@ -150,8 +150,13 @@ int main(int argc, char *argv[]) {
     if(argc < 4) {
 		return -fprintf(stderr, "usage: %s ... <path-to-store-files> <total-number-of-files> <port>\n", argv[0]);
 	}
+<<<<<<< HEAD
     system("rm -rf ./serverStore/*");
     char* fileDir = argv[1];
+=======
+    // system("rm -rf ./serverStore/*");
+    string fileDir = argv[1];
+>>>>>>> 3808867b77cbea142f3d01f066af92e6972892da
 	int totalFile = atoi(argv[2]);
     stringstream ss;
     fstream fileOut;
@@ -268,9 +273,16 @@ int main(int argc, char *argv[]) {
         if(rcvPkt.data == NULL){/*data has no stuff*/
             continue;
         }else{
+<<<<<<< HEAD
             // uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
             // if(servCksum == rcvPkt.cksum){
                 // bzero(&buffer, sizeof(buffer));
+=======
+            uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
+            servCksum = rcvPkt.cksum;
+            if(servCksum == rcvPkt.cksum){
+                bzero(&buffer, sizeof(buffer));
+>>>>>>> 3808867b77cbea142f3d01f066af92e6972892da
                 // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                 
                 if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
