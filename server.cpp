@@ -38,13 +38,13 @@ public:
 	int len; // only length of data
 	string filename;
 	bool fileEnd;
-	unsigned char* data;
+	char* data;
 
     Packet(char* _data){
         // char _data[1000] = "hello, world!\n";
 		if(_data != nullptr){
             // size_t _len = sizeof(_data);
-			data = new unsigned char[pktNum];
+			data = new char[pktNum];
 			// memmove(data, _data, pktNum);
             // memcpy(data, _data, pktNum);
             for(int i = 0; i < pktNum-1; i++){
@@ -74,7 +74,7 @@ public:
 	// 	isAcked = false;
 	// };
     Packet(){
-        data = NULL;
+        data = nullptr;
 	};
 	// void calculateCksum(){
 	// 	unsigned short *ptr = (unsigned short*)data;
@@ -126,7 +126,7 @@ public:
         data = nullptr;
     }
 };
-uint16_t servCalculateCksum(unsigned char* data, int len){
+uint16_t servCalculateCksum(char* data, int len){
     unsigned short *ptr = (unsigned short*)data;
     uint16_t cksum = ptr[0];
     int round = len/2;
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
     char* fileDir = argv[1];
 	int totalFile = atoi(argv[2]);
     stringstream ss;
-    ofstream fileOut;
+    fstream fileOut;
     ss.str("");
     ss.clear();
 	int sockfd; 
@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 	int largestAckSeq = 0;
     int ack_counter = 0;
     while(1){
-        
+    
         clilen = sizeof(clientaddr);
         int n;
         bzero(&buffer, sizeof(buffer));
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
                 servStat.send(sockfd, offset, len);
                 offset += MAXLINE;
             }
-        
+            cout << "ACK file: " << ackFile << ", Total files: " << totalFile << endl;
             // cout << "recvPktStat: " << recvPktStat << endl;
             // int cnt = 5;
             // while(cnt--) servStat.send(sockfd);
@@ -257,9 +257,9 @@ int main(int argc, char *argv[]) {
             char ch;
             ss.get(ch);/*read "\n" at the begining of ss(in front of <rcvPkt.data>)*/
             // size_t remainingDataSize = strlen(buffer) - ss.tellg();
-            // rcvPkt.data = new unsigned char[remainingDataSize + 1];
-            rcvPkt.data = new unsigned char[rcvPkt.len + 1];
-            ss.read(reinterpret_cast<char*>(rcvPkt.data), rcvPkt.len);
+            // rcvPkt.data = new char[remainingDataSize + 1];
+            rcvPkt.data = new char[rcvPkt.len + 1];
+            ss.read(rcvPkt.data, rcvPkt.len);
 
             // cout << "client data len: " << rcvPkt.len << "server data len: " << remainingDataSize << endl;
             rcvPkt.data[rcvPkt.len] = '\0';
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 // cout << "=====seq#" << rcvPkt.seq << " have correct cksum, open file====\n";
-                // cout << "======seq#" << rcvPkt.seq<< " offset: " << rcvPkt.offset<< " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
+                cout << "======seq#" << rcvPkt.seq<< " offset: " << rcvPkt.offset<< " len: " <<rcvPkt.len<<" client data======\n" << rcvPkt.data << endl;
                 
                 recvPktStat[rcvPkt.seq] = '1';/*means has receive #seq pkt*/
                 ack_counter++;
@@ -306,11 +306,11 @@ int main(int argc, char *argv[]) {
                     // errquit("server fstream open file");
                     fileOut.open(filePath, std::ios::in | std::ios::out | std::ios::trunc);
                     fileOut.seekp(rcvPkt.offset, std::ios::beg);
-                    fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+                    fileOut.write(rcvPkt.data, rcvPkt.len);
                     fileOut.close();
                 }else{
                     fileOut.seekp(rcvPkt.offset, std::ios::beg);
-                    fileOut.write(reinterpret_cast<const char*>(rcvPkt.data), rcvPkt.len);
+                    fileOut.write(rcvPkt.data, rcvPkt.len);
                     fileOut.close();
                 }
             // }
