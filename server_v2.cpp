@@ -19,7 +19,7 @@
 using namespace std;
 
 char buffer[MTU + 100];
-char rcvflag[23460];
+char rcvflag[25000];
 char* fileDir;
 struct sockaddr_in servaddr, clientaddr; 
 socklen_t clilen;
@@ -59,19 +59,19 @@ public:
 
 void sendACK(){
 	while(!clientAccepted) usleep(100);
-	char buffer[MTU];
+	char buf[MTU];
 	char tmp[MTU];
 	while(1){
 		lock_.lock();
-		for(int offset = 0; offset < sizeof(rcvflag); offset += MTU-20){
-			bzero(buffer, sizeof(buffer));
+		for(int offset = 0; offset < 23000; offset += MTU-20){
+			bzero(buf, sizeof(buf));
 			bzero(tmp, sizeof(tmp));
 			// cout << rcvflag + offset << endl;
 			strncpy(tmp, rcvflag + offset, MTU-20);
-			sprintf(buffer, "%d\n%d\n%s", MTU-20, offset, tmp);
+			sprintf(buf, "%d\n%d\n%s", MTU-20, offset, tmp);
 			// cout << "=============== sendACK =====================\n";
 			// cout << buffer << "\n=============================================\n";
-			if(sendto(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *) &clientaddr, clilen) < 0)
+			if(sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *) &clientaddr, clilen) < 0)
 				errquit("server thread 2 sendto");
 		}
 		lock_.unlock();
@@ -121,9 +121,19 @@ int main(int argc, char* argv[]){
 			errquit("server recvfrom");
 		clientAccepted = true;
 		Packet rcvedPkt(buffer);
+		
 		// rcvedPkt.printDetail();
-		cout << "========== rcv seq " << rcvedPkt.seq << " ===================\n";
+		// cout << "========== rcv seq " << rcvedPkt.seq << " ===================\n";
 		if(rcvflag[rcvedPkt.seq] == '1') continue;
+
+		// here
+		if(rcvedPkt.seq % 200 == 17){ 
+			// cout << "server ================================================\n";
+			rcvedPkt.printDetail();
+			// cout << rcvedPkt.data << endl;
+			// cout << "=======================================================\n";
+		}
+		
 
 		// cnt++; 
 		// if(cnt % 2 == 0){
@@ -156,5 +166,14 @@ int main(int argc, char* argv[]){
 		}
 	}
 	for(int i = 0; i < totalFile; i++) files[i].close();
+	ifstream file;
+	string filepath = fileDir;
+	filepath = filepath + "/000000";
+	file.open(filepath);
+	if(file.fail()) errquit("server read file");
+	cout << "server 000000 ============================================\n";
+	cout << file.rdbuf();
+	cout << "\n==========================================================\n";
+
 	return 0;
 }
