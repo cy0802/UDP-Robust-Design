@@ -40,10 +40,14 @@ public:
 	Packet(){}
 	Packet(char* raw){
 		stringstream ss; ss.clear(); ss << raw;
-		// char tmp; // \n
+		char tmp; // \n
 		ss >> seq >> cksum >> offset >> len >> filename >> fileEnd;
 		bzero(data, sizeof(data));
 		ss.ignore();
+		// for(int i = 0; i < len; i++){
+		// 	ss >> tmp;
+		// 	data[i] = tmp;
+		// }
 		ss.read(data, len);
 		data[len] = '\0';
 	}
@@ -131,6 +135,10 @@ int main(int argc, char* argv[]){
 			// cout << "server ================================================\n";
 			rcvedPkt.printDetail();
 			// cout << rcvedPkt.data << endl;
+			for(int i = 0; i < rcvedPkt.len; i++){
+				cout << rcvedPkt.data[i];
+			}
+			cout << endl;
 			// cout << "=======================================================\n";
 		}
 		
