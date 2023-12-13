@@ -139,14 +139,19 @@ public:
 		if(cksum == 0) calculateCksum();
 		
 		// here
-		// if(seq == 99 || seq == 103){ 
+		// if(seq % 200 == 17){ 
 		// 	cout << "client ================================================\n";
 		// 	cout << data << "\n";
-		// 	cout << "=======================================================\n";
+		// 	cout << "-------------------------------------------------------\n";
+		// 	for(int i = 0; i < len; i++){
+		// 		cout << data[i];
+		// 	}
+		// 	cout << "\n=======================================================\n";
 		// }
 		
-		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n%s\0",
-			seq, cksum, offset, len, filename.c_str(), fileEnd, data);
+		sprintf(buffer, "%d\n%hu\n%d\n%d\n%s\n%d\n",
+			seq, cksum, offset, len, filename.c_str(), fileEnd);
+		strncat(buffer, data, len);
 		int n;
 		if((n = write(sockfd, buffer, sizeof(buffer))) < 0) errquit("client write");
 		// cout << "sent\n";
