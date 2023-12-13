@@ -128,10 +128,16 @@ int main(int argc, char* argv[]){
 
 		// here
 		if(rcvedPkt.seq % 200 == 17){ 
-			// cout << "server ================================================\n";
-			rcvedPkt.printDetail();
+			cout << "server ================================================\n";
+			// rcvedPkt.printDetail();
 			// cout << rcvedPkt.data << endl;
-			// cout << "=======================================================\n";
+			cout << "======seq#" << rcvedPkt.seq<< " offset: " << rcvedPkt.offset<< " len: " <<rcvedPkt.len<<" client data======\n";
+			// rcvedPkt.data << endl;		
+			for(int i = 0; i < rcvedPkt.len; i++){
+				cout << rcvedPkt.data[i];
+			}
+			cout << endl;
+			cout << "=======================================================\n";
 		}
 		
 
@@ -166,6 +172,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 	for(int i = 0; i < totalFile; i++) files[i].close();
+	usleep(10000);
 	ifstream file;
 	string filepath = fileDir;
 	filepath = filepath + "/000000";
