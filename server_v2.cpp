@@ -192,6 +192,7 @@ int main(int argc, char* argv[]){
 		}
 	}
 	for(int i = 0; i < totalFile; i++) files[i].close();
+	usleep(10000);
 	ifstream file;
 	string filepath = fileDir;
 	filepath = filepath + "/000000";
