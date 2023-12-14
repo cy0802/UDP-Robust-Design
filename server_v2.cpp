@@ -39,17 +39,35 @@ public:
 	char data[MTU];
 	Packet(){}
 	Packet(char* raw){
-		stringstream ss; ss.clear(); ss << raw;
-		char tmp; // \n
-		ss >> seq >> cksum >> offset >> len >> filename >> fileEnd;
-		bzero(data, sizeof(data));
-		ss.ignore();
+		cout << raw << endl;
+		sscanf(raw, "%d\n%hu\n%d\n%d\n%s\n%d\n", &seq, &cksum, &len, filename, &fileEnd);
+		int cnt = 0;
+		int i;
+		for(i = 0; i < strlen(raw); i++){
+			if(raw[i] == '\n'){
+				cnt++;
+			}
+			if(cnt == 6){
+				i++;
+				break;
+			}
+		}
+		memcpy(data, raw + i, len);
+		for(int i = 0; i < len; i++){
+			cout << data[i];
+		}
+		cout << endl;
+		// stringstream ss; ss.clear(); ss << raw;
+		// char tmp; // \n
+		// ss >> seq >> cksum >> offset >> len >> filename >> fileEnd;
+		// bzero(data, sizeof(data));
+		// ss.ignore();
 		// for(int i = 0; i < len; i++){
 		// 	ss >> tmp;
 		// 	data[i] = tmp;
 		// }
-		ss.read(data, len);
-		data[len] = '\0';
+		// // ss.read(data, len);
+		// data[len] = '\0';
 	}
 
 	void printDetail(){
@@ -132,14 +150,14 @@ int main(int argc, char* argv[]){
 
 		// here
 		if(rcvedPkt.seq % 200 == 17){ 
-			// cout << "server ================================================\n";
-			rcvedPkt.printDetail();
+			cout << "server ================================================\n";
+			// rcvedPkt.printDetail();
 			// cout << rcvedPkt.data << endl;
 			for(int i = 0; i < rcvedPkt.len; i++){
 				cout << rcvedPkt.data[i];
 			}
 			cout << endl;
-			// cout << "=======================================================\n";
+			cout << "=======================================================\n";
 		}
 		
 

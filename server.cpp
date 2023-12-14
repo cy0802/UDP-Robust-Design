@@ -273,16 +273,10 @@ int main(int argc, char *argv[]) {
         if(rcvPkt.data == NULL){/*data has no stuff*/
             continue;
         }else{
-<<<<<<< HEAD
-            // uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
-            // if(servCksum == rcvPkt.cksum){
-                // bzero(&buffer, sizeof(buffer));
-=======
             uint16_t servCksum = servCalculateCksum(rcvPkt.data, rcvPkt.len);
             servCksum = rcvPkt.cksum;
             if(servCksum == rcvPkt.cksum){
                 bzero(&buffer, sizeof(buffer));
->>>>>>> 3808867b77cbea142f3d01f066af92e6972892da
                 // sprintf(buffer, "receive pkt#%d, cksum right!\n", rcvPkt.seq);
                 
                 if(recvPktStat[rcvPkt.seq] == '1'){/*have receive*/
